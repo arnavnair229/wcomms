@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "wcomms": {
+      "type": "http",
+      "url": "${WCOMMS_URL}/mcp",
+      "headers": { "Authorization": "Bearer ${WCOMMS_TOKEN}" }
+    }
+  }
+}

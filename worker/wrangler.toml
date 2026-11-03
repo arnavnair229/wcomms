@@ -1,0 +1,32 @@
+name = "wcomms"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+# Request logs and errors in the Cloudflare dashboard (Workers > wcomms > Logs).
+[observability]
+enabled = true
+
+[vars]
+# A claim is released this many minutes after its session ended (SessionEnd / offline)...
+CLAIM_TTL_MIN = "120"
+# ...or after this many hours of silence regardless (crashed sessions, machines asleep for days).
+CLAIM_HARD_TTL_HOURS = "36"
+
+# Secrets (wrangler secret put ...). Nobody's access is configured here: anyone with push access to a GitHub repo
+# can use that repo's hub at /r/<owner>/<repo>/, authenticated with their own GitHub login.
+#   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET  a GitHub OAuth App for dashboard sign-in
+#                                           (callback URL: https://<worker>/auth/callback)
+#   SESSION_SECRET                          random string that encrypts dashboard session cookies
+#   NTFY_TOPICS                             optional JSON {"<github login>": "<ntfy topic or URL>"} for phone pings
+#   ALLOWED_OWNERS                          comma list of GitHub owners (users/orgs) or owner/repo this Worker serves.
+#                                           Set it on any deployment that is reachable from the internet.
+# For `wrangler dev` only (ignored unless the host is localhost), in .dev.vars:
+#   INSECURE_DEV_TOKENS={"tok-a":"alice"}  INSECURE_DEV_ADMIN_TOKENS={"adm-a":"alice"}

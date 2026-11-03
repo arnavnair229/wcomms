@@ -1,0 +1,1629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0809">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="wcomms">
+<title>wcomms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js" defer></script>
+<style>
+  /* Near-black + wine (default) or royal purple, with silver for primary actions and headings.
+     Roles: --brand/--accent = identity and highlights, --ok = online/results, --attn = champagne "needs you", --bad = errors. */
+  :root {
+    --bg: #0a0809; --side: #0e0b0c; --card: #151113; --card-2: #1b1618; --line: rgba(255,240,244,.07); --line-2: rgba(255,240,244,.13);
+    --ink: #f3eef0; --ink-2: #b5abaf; --ink-3: #7f7478;
+    --brand: #7b1730; --brand-deep: #3a0a17; --accent: #d4607f; --accent-soft: rgba(212,96,127,.14);
+    --btn-bg: linear-gradient(180deg, #f6f3f4, #c8c1c4); --btn-ink: #140e10;
+    --metal: linear-gradient(180deg, #ffffff 0%, #d9d3d6 55%, #a9a1a5 100%);
+    --ok: #94c6a2; --ok-soft: rgba(148,198,162,.12);
+    --attn: #dcbb7e; --attn-soft: rgba(220,187,126,.13); --bad: #ff7466; --bad-soft: rgba(255,116,102,.12);
+    --glow: rgba(150,25,62,.34); --spot: rgba(212,96,127,.10); --side-wash: rgba(123,23,48,.22);
+    --shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 10px 28px -14px rgba(0,0,0,.7);
+    --r-planner: #9fb4d9; --r-researcher: #c9a6e0; --r-coder: #94c6a2; --r-reviewer: #e58aa2; --r-backtester: #b9b2a8;
+    --plaza-a: #2a2124; --plaza-b: #2f2528;
+    --tile-a: #1d1618; --tile-b: #221a1d; --road: #110d0f; --lane: #3d3135; --slab-l: #170f12; --slab-r: #0d090a;
+    --win-lit: #f0cf8a; --win-dark: rgba(0,0,0,.38); --town-glow: rgba(150,25,62,.16);
+    --font: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif; --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: dark;
+  }
+  :root[data-palette="royal"] {
+    --bg: #09090c; --side: #0c0c10; --card: #121218; --card-2: #18181f; --line: rgba(240,240,255,.07); --line-2: rgba(240,240,255,.13);
+    --ink: #eeeef4; --ink-2: #aeaeba; --ink-3: #75758a;
+    --brand: #4f2d7f; --brand-deep: #20113a; --accent: #ad8fe0; --accent-soft: rgba(173,143,224,.14);
+    --metal: linear-gradient(180deg, #ffffff 0%, #d6d7de 55%, #a3a5b0 100%);
+    --glow: rgba(88,48,150,.36); --spot: rgba(173,143,224,.10); --side-wash: rgba(79,45,127,.24);
+    --plaza-a: #23212c; --plaza-b: #282632;
+    --tile-a: #17161e; --tile-b: #1c1b24; --road: #0e0e13; --lane: #37354c; --slab-l: #121118; --slab-r: #0a0a0e; --town-glow: rgba(88,48,150,.18);
+  }
+  :root[data-theme="light"] {
+    --bg: #f8f5f4; --side: #f1ecea; --card: #ffffff; --card-2: #fbf9f8; --line: rgba(40,0,12,.08); --line-2: rgba(40,0,12,.15);
+    --ink: #1c1416; --ink-2: #5c5054; --ink-3: #8f8387;
+    --brand: #7b1730; --brand-deep: #4a0e1d; --accent: #8c1c3a; --accent-soft: rgba(140,28,58,.08);
+    --btn-bg: linear-gradient(180deg, #93203f, #6c1530); --btn-ink: #ffffff;
+    --metal: linear-gradient(180deg, #1c1416, #4d4245);
+    --ok: #2f7a4a; --ok-soft: rgba(47,122,74,.09); --attn: #94650f; --attn-soft: rgba(148,101,15,.1); --bad: #c0362c; --bad-soft: rgba(192,54,44,.08);
+    --glow: rgba(140,28,58,.09); --spot: rgba(140,28,58,.05); --side-wash: rgba(140,28,58,.06);
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 26px -18px rgba(60,0,20,.25);
+    --r-planner: #46679e; --r-researcher: #7d4f9e; --r-coder: #2f7a4a; --r-reviewer: #b23a5c; --r-backtester: #7a7266;
+    --plaza-a: #f4efec; --plaza-b: #efe8e5;
+    --tile-a: #ece6e3; --tile-b: #e4ddd9; --road: #d3cac6; --lane: #f8f4f2; --slab-l: #d6ccc8; --slab-r: #c8bdb9;
+    --win-lit: #f2c25c; --win-dark: rgba(0,0,0,.14); --town-glow: rgba(140,28,58,.06);
+    color-scheme: light;
+  }
+  :root[data-theme="light"][data-palette="royal"] {
+    --bg: #f6f5f8; --side: #eeedf2; --line: rgba(20,0,40,.08); --line-2: rgba(20,0,40,.15);
+    --ink: #17141d; --ink-2: #57525f; --ink-3: #8a8594;
+    --brand: #4f2d7f; --brand-deep: #2c1650; --accent: #4f2d7f; --accent-soft: rgba(79,45,127,.08);
+    --btn-bg: linear-gradient(180deg, #5c3792, #41246a); --metal: linear-gradient(180deg, #17141d, #4a4552);
+    --glow: rgba(79,45,127,.09); --spot: rgba(79,45,127,.05); --side-wash: rgba(79,45,127,.06);
+    --plaza-a: #f2f1f6; --plaza-b: #ecebf2;
+    --tile-a: #e9e7ef; --tile-b: #e1dfe9; --road: #d0cdda; --lane: #f7f6fa; --slab-l: #d3d0dc; --slab-r: #c6c2d1; --town-glow: rgba(79,45,127,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- shell ---------- */
+  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100%; }
+  aside { background: linear-gradient(180deg, var(--side-wash), transparent 320px), var(--side); border-right: 1px solid var(--line); padding: 18px 12px; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+  .mark { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, var(--brand), var(--brand-deep)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); display: grid; place-items: center; color: #f4eef0; font-weight: 700; font-size: 13px; }
+  .brand b { font-size: 15px; letter-spacing: -.01em; background: var(--metal); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .repo { padding: 0 8px; color: var(--ink-3); font-family: var(--mono); font-size: 12px; word-break: break-all; }
+  nav { display: flex; flex-direction: column; gap: 2px; }
+  nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--ink-2); font-weight: 500; }
+  nav a:hover { background: var(--card); color: var(--ink); }
+  nav a.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow), inset 2px 0 0 var(--accent); }
+  nav a svg { width: 16px; height: 16px; flex: none; opacity: .85; }
+  nav .badge { margin-left: auto; font-size: 11.5px; padding: 0 7px; line-height: 18px; border-radius: 999px; background: var(--card-2); color: var(--ink-2); }
+  nav .badge.attn { background: var(--attn-soft); color: var(--attn); }
+  .side-foot { margin-top: auto; padding: 0 8px; display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; color: var(--ink-3); }
+  .live { display: flex; align-items: center; gap: 8px; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .side-foot .row { justify-content: space-between; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; }
+  .linkbtn:hover { color: var(--ink); }
+
+  main { padding: 28px 32px 48px; min-width: 0; position: relative; }
+  main::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 340px; pointer-events: none;
+    background: radial-gradient(760px 300px at 15% -80px, var(--glow), transparent 70%), radial-gradient(500px 220px at 95% -60px, color-mix(in srgb, var(--glow) 55%, transparent), transparent 70%); }
+  .head { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .head h1 { font-size: 26px; line-height: 1.15; letter-spacing: -.02em; margin: 0; font-weight: 650; background: var(--metal); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .head p { margin: 6px 0 0; color: var(--ink-2); max-width: 70ch; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    aside { position: sticky; top: 0; z-index: 5; height: auto; flex-direction: row; align-items: center; padding: 10px 12px; gap: 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    .repo, .side-foot { display: none; }
+    nav { flex-direction: row; }
+    nav a { padding: 6px 10px; white-space: nowrap; }
+    nav a span.lbl { display: none; }
+    main { padding: 20px 16px 40px; }
+    .head h1 { font-size: 22px; }
+  }
+
+  /* ---------- cards (spotlight: a soft glow follows the cursor; decoration only) ---------- */
+  .card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; overflow: hidden; }
+  .card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .25s;
+    background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 0%), var(--spot), transparent 65%); }
+  .card:hover::before { opacity: 1; }
+  .card > * { position: relative; }
+  .card.attn { border-color: color-mix(in srgb, var(--attn) 40%, var(--line)); }
+  .card h2 { font-size: 13.5px; font-weight: 600; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; letter-spacing: -.005em; }
+  .card h2 .sub { color: var(--ink-3); font-weight: 500; }
+  .card h2 .right { margin-left: auto; }
+  .grid { display: grid; gap: 16px; }
+  .g-overview { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; } .span-12 { grid-column: span 12; } .span-6 { grid-column: span 6; }
+  @media (max-width: 1180px) { .span-8, .span-4, .span-6 { grid-column: span 12; } }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 860px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+  .stat .label { color: var(--ink-2); font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+  .stat .value { font-size: 32px; font-weight: 600; letter-spacing: -.03em; line-height: 1.1; margin-top: 6px; background: var(--metal); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat .hint { color: var(--ink-3); font-size: 12px; margin-top: 2px; }
+  .stat.attn .value { background: none; color: var(--attn); }
+
+  /* ---------- lists ---------- */
+  .item { padding: 12px 0; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; padding-top: 0; }
+  .item:last-child { padding-bottom: 0; }
+  .meta { color: var(--ink-3); font-size: 12.5px; }
+  .muted { color: var(--ink-2); }
+  .body { white-space: pre-wrap; word-break: break-word; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sep::before { content: "·"; margin-right: 8px; color: var(--ink-3); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+  .pill.attn { background: var(--attn-soft); border-color: transparent; color: var(--attn); }
+  .pill.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+  .pill.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; display: inline-block; }
+  .links { margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .links span { font-family: var(--mono); font-size: 12px; color: var(--ink-2); word-break: break-all; }
+  .empty { color: var(--ink-3); padding: 6px 0; margin: 0; }
+  .empty.big { padding: 22px 0; text-align: center; }
+
+  /* ---------- controls ---------- */
+  .btn { cursor: pointer; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--line-2); background: var(--card-2); font-weight: 500; font-size: 13px; transition: border-color .15s, background .15s, transform .05s; }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--btn-bg); border-color: transparent; color: var(--btn-ink); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 1px 2px rgba(0,0,0,.3); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .field { background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+  textarea.field { width: 100%; resize: vertical; min-height: 64px; display: block; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; background: var(--card-2); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+  .seg button { border: 0; background: none; padding: 4px 10px; border-radius: 7px; color: var(--ink-2); cursor: pointer; font-size: 12.5px; }
+  .seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+
+  /* ---------- needs you ---------- */
+  .need-kind { font-size: 11.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--attn); }
+  .check { margin-top: 6px; font-size: 12.5px; color: var(--bad); display: flex; gap: 6px; }
+  .check::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--bad); margin-top: 6px; flex: none; }
+  .diff { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow: auto; background: var(--bg); border: 1px solid var(--line); padding: 10px 12px; border-radius: 9px; margin-top: 8px; line-height: 1.55; }
+  .diff .add { color: var(--ok); background: var(--ok-soft); display: block; margin: 0 -12px; padding: 0 12px; }
+  .diff .del { color: var(--bad); background: var(--bad-soft); display: block; margin: 0 -12px; padding: 0 12px; text-decoration: line-through; }
+
+  /* ---------- activity timeline ---------- */
+  .tl { position: relative; }
+  .tl .ev { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 10px; padding: 0 0 14px; position: relative; }
+  .tl .ev::before { content: ""; position: absolute; left: 3px; top: 14px; bottom: 0; width: 1px; background: var(--line-2); }
+  .tl .ev:last-child::before { display: none; }
+  .tl .ev .dot { margin-top: 6px; }
+  .k-result .dot, .dot.k-result { background: var(--ok); }
+  .k-decision .dot, .dot.k-decision { background: var(--accent); }
+  .k-question .dot, .dot.k-question { background: var(--attn); }
+  .k-system .dot, .dot.k-system { background: var(--ink-3); opacity: .6; }
+
+  /* ---------- people ---------- */
+  .person + .person { margin-top: 16px; }
+  .person .who { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--card-2); border: 1px solid var(--line-2); text-transform: uppercase; }
+  .agent { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; padding: 8px 0 8px 4px; }
+  .agent .dot { margin-top: 7px; }
+  .agent .dot.on { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+
+  /* ---------- board ---------- */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .toolbar .field { flex: 1; min-width: 220px; }
+  .cols { display: grid; grid-template-columns: repeat(4, minmax(250px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 6px; align-items: start; }
+  .col { background: color-mix(in srgb, var(--card) 55%, transparent); border: 1px solid var(--line); border-radius: 14px; padding: 10px; min-height: 120px; }
+  .col-h { display: flex; align-items: center; gap: 8px; padding: 4px 6px 10px; font-weight: 600; font-size: 13px; }
+  .col-h .n { color: var(--ink-3); font-weight: 500; }
+  .tcard { background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; box-shadow: var(--shadow); }
+  .tcard + .tcard { margin-top: 8px; }
+  .tcard .t { font-weight: 500; margin: 4px 0 6px; }
+  .tcard .res { color: var(--ink-2); font-size: 12.5px; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .role .dot { width: 6px; height: 6px; }
+  .role.planner .dot { background: var(--r-planner); } .role.researcher .dot { background: var(--r-researcher); }
+  .role.coder .dot { background: var(--r-coder); } .role.reviewer .dot { background: var(--r-reviewer); } .role.backtester .dot { background: var(--r-backtester); }
+
+  /* ---------- messages ---------- */
+  .msgs { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .msgs { grid-template-columns: minmax(0, 1fr); } }
+  .filters h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 6px; font-weight: 600; }
+  .filters h3 + * { margin-bottom: 16px; }
+  .flist button { display: flex; width: 100%; justify-content: space-between; border: 0; background: none; padding: 6px 8px; border-radius: 7px; color: var(--ink-2); cursor: pointer; text-align: left; }
+  .flist button:hover { background: var(--card-2); color: var(--ink); }
+  .flist button.on { background: var(--card-2); color: var(--ink); }
+  .flist .n { color: var(--ink-3); font-size: 12px; }
+  .msg { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .msg:first-child { border-top: 0; padding-top: 0; }
+  .msg .avatar { width: 30px; height: 30px; }
+  .msg .who { font-weight: 600; }
+
+  /* ---------- knowledge ---------- */
+  .kv { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 4px 16px; }
+  @media (max-width: 700px) { .kv { grid-template-columns: minmax(0, 1fr); } }
+  pre.val { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; max-height: 200px; overflow: auto; background: var(--bg); border: 1px solid var(--line); padding: 8px 10px; border-radius: 9px; }
+  .meter { height: 6px; background: var(--card-2); border-radius: 999px; overflow: hidden; margin: 8px 0 12px; }
+  .meter > span { display: block; height: 100%; background: linear-gradient(90deg, var(--brand), var(--accent)); border-radius: inherit; }
+  details > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; list-style: none; }
+  details > summary::before { content: "›"; display: inline-block; margin-right: 6px; transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+
+  /* ---------- town ---------- */
+  .town-card { padding: 0; }
+  .town-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding: 16px 18px 4px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .legend .lg-ghost { border: 1.5px dashed var(--accent); }
+  .legend .lg-lot { border: 1.5px dashed var(--ink-3); background: #7d7477; }
+  .town { position: relative; height: clamp(420px, calc(100vh - 210px), 1100px); overflow: hidden; touch-action: none; cursor: grab; user-select: none;
+    background: radial-gradient(70% 60% at 50% 40%, var(--town-glow), transparent 75%); border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+  .town.dragging { cursor: grabbing; }
+  .town svg { display: block; width: 100%; height: 100%; }
+  .town-ctl { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 2; }
+  .town-ctl .btn { min-width: 34px; padding: 5px 10px; background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(6px); }
+  .town-go { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 2; max-width: calc(100% - 24px); }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2); cursor: pointer;
+    background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(6px); font-size: 12.5px; color: var(--ink-2); }
+  .chip:hover { color: var(--ink); border-color: var(--ink-3); }
+  .agent { cursor: pointer; outline: none; }
+  .agent:hover, .agent:focus-visible, .agent.pinned { filter: drop-shadow(0 0 6px var(--accent)) brightness(1.12); }
+  .lg-bubble { display: inline-grid; place-items: center; width: 14px; height: 12px; border-radius: 4px; background: #dcbb7e; color: #1a1416; font-size: 9px; margin-right: 6px; vertical-align: 0; }
+  textarea.nudge-edit { margin-top: 2px; }
+  .tip-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .tip-section textarea { margin-top: 6px; min-height: 52px; }
+  .crew { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); }
+  .crew:first-of-type { border-top: 0; }
+  .crew .dot { margin-top: 6px; }
+  .crew .btn { padding: 3px 9px; font-size: 12px; flex: none; }
+  .town-tip pre.val { max-height: 160px; }
+  .swatches { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .swatches .meta { margin-right: 4px; }
+  .swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+  .swatch.on { border-color: var(--ink); }
+  @media (pointer: coarse) { .swatch { width: 28px; height: 28px; } }
+  .legend .lg-lit { background: #f0cf8a; box-shadow: 0 0 6px #f0cf8a; }
+  .legend .lg-bridge { border-top: 2px dotted #dcbb7e; height: 0; width: 14px; border-radius: 0; vertical-align: 3px; }
+  .bridge { fill: none; stroke-width: 1.6; opacity: .55; pointer-events: none; transition: opacity .2s, stroke-width .2s; }
+  .bridge.dep { stroke: var(--accent); stroke-dasharray: 6 6; }
+  .bridge.shared { stroke: #dcbb7e; stroke-dasharray: 1.5 4; stroke-linecap: round; }
+  .bridge.active { opacity: 1; stroke-width: 2.6; }
+  .landmark { cursor: pointer; outline: none; }
+  .landmark:hover, .landmark:focus-visible, .landmark.pinned { filter: drop-shadow(0 0 7px #f0cf8a) brightness(1.08); }
+  /* Time of day: the sky behind the island and how bright the windows read. */
+  .town { --sky: var(--town-glow); }
+  .town.tod-day { background: radial-gradient(70% 60% at 50% 40%, var(--town-glow), transparent 75%); }
+  .town.tod-dawn, .town.tod-dusk { background: radial-gradient(90% 70% at 50% 0%, rgba(220,140,110,.16), transparent 70%), radial-gradient(70% 60% at 50% 40%, var(--town-glow), transparent 75%); }
+  .town.tod-night { background:
+      radial-gradient(1.2px 1.2px at 12% 18%, rgba(255,255,255,.7), transparent), radial-gradient(1px 1px at 27% 8%, rgba(255,255,255,.55), transparent),
+      radial-gradient(1.4px 1.4px at 44% 14%, rgba(255,255,255,.6), transparent), radial-gradient(1px 1px at 63% 6%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1.2px 1.2px at 78% 16%, rgba(255,255,255,.65), transparent), radial-gradient(1px 1px at 90% 9%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 8% 34%, rgba(255,255,255,.4), transparent), radial-gradient(1.2px 1.2px at 93% 30%, rgba(255,255,255,.45), transparent),
+      radial-gradient(80% 60% at 50% 45%, var(--town-glow), transparent 75%), linear-gradient(180deg, rgba(10,8,30,.55), transparent 60%); }
+  .town.tod-night .win-on { filter: drop-shadow(0 0 2.5px #f0cf8a); }
+  .town.tod-day .win-on { opacity: .85; }
+  .town-label text { font: 600 13px var(--font); fill: var(--ink-2); }
+  .town-empty { font: 500 14px var(--font); fill: var(--ink-3); }
+  .bld { cursor: pointer; outline: none; transition: filter .2s; }
+  .bld:hover, .bld:focus-visible, .bld.pinned { filter: drop-shadow(0 0 7px var(--accent)) brightness(1.1); }
+  .town-tip { position: absolute; z-index: 3; width: 340px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); overflow: auto; background: var(--card); border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px;
+    box-shadow: var(--shadow), 0 24px 48px -24px rgba(0,0,0,.75); pointer-events: none; }
+  .town-tip.pinned { pointer-events: auto; border-color: color-mix(in srgb, var(--accent) 50%, var(--line-2)); }
+  .tip-kicker { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .tip-title { font-weight: 600; margin: 3px 0 8px; line-height: 1.35; }
+  .tip-stat { color: var(--ink-2); }
+  .tip-stat b { font-size: 18px; color: var(--ink); margin-right: 2px; }
+  .tcard.flash { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+
+  /* ---------- phones ---------- */
+  /* iOS zooms the page when focusing inputs under 16px; keep them at 16 on touch screens. Bigger tap targets too. */
+  @media (pointer: coarse) {
+    input, textarea, select { font-size: 16px; }
+    .btn, .chip, .seg button, nav a { min-height: 40px; }
+    .town-ctl .btn { min-width: 42px; }
+    .card::before { display: none; }
+  }
+  /* Landscape phones: short viewports. Respect the notch, keep the map usable. */
+  @media (max-height: 520px) {
+    aside { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+    main { padding: 14px max(14px, env(safe-area-inset-right)) 28px max(14px, env(safe-area-inset-left)); }
+    .head { margin-bottom: 12px; }
+    .head h1 { font-size: 20px; }
+    .head p { display: none; }
+    .town { height: calc(100dvh - 178px); min-height: 220px; }
+    .town-head { padding: 8px 14px 2px; }
+    .town-head h2 { font-size: 13px; }
+    .legend { display: none; }
+    /* Overview on a phone: stats shrink to one compact row so "Needs you" is on the first screen. */
+    .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .stat { padding: 10px 12px; }
+    .stat .value { font-size: 22px; margin-top: 2px; }
+    .stat .hint { display: none; }
+  }
+  @supports (height: 100dvh) { .town { height: clamp(420px, calc(100dvh - 210px), 1100px); } @media (max-height: 520px) { .town { height: calc(100dvh - 178px); } } }
+
+  #rotate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(10px); }
+  #rotate[hidden] { display: none; }
+  .rot-card { max-width: 320px; text-align: center; }
+  .rot-card h2 { font-size: 20px; margin: 18px 0 6px; letter-spacing: -.01em; }
+  .rot-card p { color: var(--ink-2); margin: 0 0 18px; }
+  .rot-phone { width: 46px; height: 78px; margin: 0 auto; border: 3px solid var(--ink); border-radius: 10px; position: relative; animation: rot 2.2s ease-in-out infinite; }
+  .rot-phone::after { content: ""; position: absolute; bottom: 6px; left: 50%; width: 12px; height: 3px; margin-left: -6px; border-radius: 2px; background: var(--ink-3); }
+  @keyframes rot { 0%, 25% { transform: rotate(0); } 55%, 80% { transform: rotate(-90deg); border-color: var(--accent); } 100% { transform: rotate(0); } }
+  @media (prefers-reduced-motion: reduce) { .rot-phone { animation: none; transform: rotate(-90deg); } }
+
+  #login { max-width: 420px; margin: 18vh auto; padding: 0 16px; text-align: center; }
+  #login .mark { width: 40px; height: 40px; border-radius: 11px; font-size: 18px; margin: 0 auto 16px; }
+  .err { color: var(--bad); }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .card::before { transition: none; } }
+</style>
+</head>
+<body>
+<div id="rotate" hidden role="dialog" aria-modal="true" aria-labelledby="rotTitle">
+  <div class="rot-card">
+    <div class="rot-phone" aria-hidden="true"></div>
+    <h2 id="rotTitle">Turn your phone sideways</h2>
+    <p>wcomms is laid out for landscape: the town, the board and approvals all fit better that way.</p>
+    <button type="button" class="btn" id="rotateSkip">Continue in portrait</button>
+  </div>
+</div>
+<div id="login" hidden>
+  <div class="mark">w</div>
+  <h1 style="font-size:22px;margin:0 0 6px;letter-spacing:-.02em">Sign in to wcomms</h1>
+  <p class="muted" id="loginMsg">Use the GitHub account that has push access to <b id="repoName"></b>.</p>
+  <p><a id="signin" href="/auth/login"><button type="button" class="btn primary">Continue with GitHub</button></a></p>
+</div>
+
+<div id="app" class="shell" hidden>
+  <aside>
+    <div class="brand"><div class="mark">w</div><b>wcomms</b></div>
+    <div class="repo" id="repoTag"></div>
+    <nav id="nav">
+      <a href="#town" data-view="town"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14h12"/><rect x="3" y="7" width="4" height="7" rx=".6"/><rect x="9" y="3" width="4" height="11" rx=".6"/><path d="M10.5 5.5h1M10.5 8h1M4.5 9.5h1"/></svg><span class="lbl">Town</span><span class="badge" data-badge="town" hidden></span></a>
+      <a href="#overview" data-view="overview"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg><span class="lbl">Overview</span><span class="badge" data-badge="overview" hidden></span></a>
+      <a href="#board" data-view="board"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="3.2" height="11" rx="1"/><rect x="6.4" y="2.5" width="3.2" height="7.5" rx="1"/><rect x="10.8" y="2.5" width="3.2" height="9" rx="1"/></svg><span class="lbl">Board</span><span class="badge" data-badge="board" hidden></span></a>
+      <a href="#messages" data-view="messages"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke-linejoin="round"/></svg><span class="lbl">Messages</span><span class="badge" data-badge="messages" hidden></span></a>
+      <a href="#knowledge" data-view="knowledge"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2.5h7.5l2.5 2.5v8.5H3z" stroke-linejoin="round"/><path d="M5.5 7h5M5.5 9.5h5"/></svg><span class="lbl">Knowledge</span><span class="badge" data-badge="knowledge" hidden></span></a>
+      <a href="#team" data-view="team"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5.5" r="2.3"/><path d="M2 13c.5-2.3 2-3.5 4-3.5s3.5 1.2 4 3.5"/><circle cx="11.5" cy="6" r="1.8"/><path d="M11 9.6c1.6 0 2.7 1 3.1 3.1"/></svg><span class="lbl">Team</span><span class="badge" data-badge="team" hidden></span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="live"><span class="pulse"></span><span id="updated">Connecting…</span></div>
+      <div class="row" style="display:flex;justify-content:space-between"><span id="me"></span><span><a class="linkbtn" href="/auth/logout">Sign out</a></span></div>
+      <div class="row" style="display:flex;gap:8px"><div class="seg" id="paletteSeg" aria-label="Colour"><button type="button" data-palette="wine">Wine</button><button type="button" data-palette="royal">Royal</button></div><button class="linkbtn" id="themeBtn" type="button" aria-label="Toggle light or dark">Light</button></div>
+    </div>
+  </aside>
+  <main>
+    <div class="head"><div><h1 id="title"></h1><p id="subtitle"></p></div><div id="headAction"></div></div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<script>
+// ---------- setup ----------
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const BASE = location.pathname.replace(/\/+$/, "");
+const REPO = BASE.replace(/^\/r\//, "");
+const KINDS = ["question", "result", "decision", "handoff", "claim", "note", "system"];
+const ROLES = ["planner", "researcher", "coder", "reviewer", "backtester"];
+const S = { data: null, sig: "", view: "", mounted: "", openReply: null, hits: null, fKind: "", fTopic: "", stats: {}, seen: new Set(), painted: false, timer: null };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const dismissed = new Set(store.get("wcomms_dismissed:" + REPO, []));
+const saveDismissed = () => store.set("wcomms_dismissed:" + REPO, [...dismissed]);
+
+let G = null, motion = false;   // GSAP is optional: everything works (without motion) if it fails to load.
+function initMotion() {
+  G = window.gsap || null;
+  motion = !!G && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (G && window.Flip) G.registerPlugin(window.Flip);
+}
+
+const theme = store.get("wcomms_theme", null);
+if (theme) document.documentElement.dataset.theme = theme;
+else if (matchMedia("(prefers-color-scheme: light)").matches) document.documentElement.dataset.theme = "light";
+document.documentElement.dataset.palette = new URLSearchParams(location.search).get("palette") || store.get("wcomms_palette", "wine");
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function ago(ts) {
+  if (!ts) return "never";
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 45) return "just now"; if (s < 3600) return Math.max(1, Math.round(s / 60)) + "m ago";
+  if (s < 86400) return Math.round(s / 3600) + "h ago"; return Math.round(s / 86400) + "d ago";
+}
+const short = (id) => String(id ?? "").replace(/^[^@]+@/, "");
+const initials = (id) => esc(String(id ?? "?").replace(/@.*/, "").slice(0, 2));
+const links = (ls) => ls && ls.length ? `<div class="links">${ls.map((l) => /^https?:\/\//.test(l)
+  ? `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l)}</a>` : `<span>${esc(l)}</span>`).join("")}</div>` : "";
+const role = (r) => r ? `<span class="pill role ${esc(r)}"><span class="dot"></span>${esc(r)}</span>` : "";
+const plural = (n, w) => `${n} ${n === 1 ? w : w === "person" ? "people" : w + "s"}`;
+
+async function api(path, opts = {}) {
+  const r = await fetch(BASE + path, { ...opts, credentials: "same-origin", headers: { "x-requested-with": "wcomms", "content-type": "application/json" } });
+  if (r.status === 401) { showLogin(); throw new Error("Signed out"); }
+  const j = await r.json();
+  if (r.status === 403 && !S.data) { showLogin(j.error); throw new Error(j.error); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function showLogin(err) {
+  $("#app").hidden = true; $("#login").hidden = false; clearInterval(S.timer);
+  $("#repoName").textContent = REPO;
+  $("#signin").href = "/auth/login?next=" + encodeURIComponent(location.pathname);
+  if (err) $("#loginMsg").innerHTML = `<span class="err">${esc(err)}</span>`;
+}
+
+// ---------- derived data ----------
+
+function needs() {
+  const d = S.data, mine = (m) => m.recipient === d.me || m.recipient === "humans";
+  const answered = (q) => d.messages.some((m) => m.id > q.id && new RegExp(`^Re #${q.id}\\b`).test(m.body));
+  const questions = d.messages.filter((m) => m.kind === "question" && mine(m) && m.sender !== d.me && !answered(m) && !dismissed.has(m.id));
+  const proposals = d.learning.proposals.filter((p) => p.status === "pending");
+  const expired = d.messages.filter((m) => m.kind === "system" && /claim expired/.test(m.body) && Date.now() - m.ts < 86400000 && !dismissed.has(m.id));
+  const nudges = (d.nudges || []).filter((x) => x.status === "pending" && x.to_human === d.me);
+  const answers = (d.nudges || []).filter((x) => x.status === "answered" && x.from_human === d.me && !dismissed.has("n" + x.id));
+  // Nudge notices are already shown as nudge cards; don't also list them as questions.
+  const qs = questions.filter((m) => m.topic !== "nudges");
+  return { questions: qs, proposals, expired, nudges, answers, total: qs.length + proposals.length + expired.length + nudges.length + answers.length };
+}
+const agents = () => S.data.who.filter((a) => a.id !== a.human);
+const activeAgents = () => agents().filter((a) => a.active);
+const byStatus = (s) => S.data.tasks.filter((t) => t.status === s);
+const waiting = (t) => t.status === "open" && t.deps.some((d) => (S.data.tasks.find((x) => x.id === d) || {}).status !== "done");
+
+// ---------- shared pieces ----------
+
+function questionHtml(m) {
+  const replying = S.openReply === m.id;
+  return `<div class="item" data-key="q${m.id}">
+    <div class="row"><span class="need-kind">Question</span><span class="meta">${esc(m.sender)}${m.recipient === "humans" ? " to all humans" : ""} · ${ago(m.ts)}</span></div>
+    <div class="body" style="margin-top:4px;font-size:15px">${esc(m.body)}</div>${links(m.links)}
+    ${replying ? `<form class="replyForm" data-id="${m.id}" data-to="${esc(m.sender)}" data-topic="${esc(m.topic)}" style="margin-top:10px">
+        <textarea class="field" name="body" maxlength="1400" placeholder="Your answer goes straight to ${esc(short(m.sender) || m.sender)}" aria-label="Your answer"></textarea>
+        <div class="actions"><button class="btn primary">Send answer</button><button class="btn" type="button" data-cancel>Cancel</button></div></form>`
+      : `<div class="actions"><button class="btn primary" data-reply="${m.id}">Answer</button><button class="btn" data-dismiss="${m.id}">Dismiss</button></div>`}
+  </div>`;
+}
+
+function diffLines(a, b) {
+  const x = a.split("\n"), y = b.split("\n"), n = x.length, m = y.length;
+  if (n * m > 400000) return esc(b);
+  const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && x[i] === y[j]) { out.push(esc(x[i])); i++; j++; }
+    else if (j < m && (i >= n || L[i][j + 1] >= L[i + 1][j])) { out.push(`<span class="add">+ ${esc(y[j])}</span>`); j++; }
+    else { out.push(`<span class="del">- ${esc(x[i])}</span>`); i++; }
+  }
+  return out.join("\n").replace(/\n(<span class="(add|del)">)/g, "$1").replace(/(<\/span>)\n/g, "$1");
+}
+
+function proposalHtml(p) {
+  const L = S.data.learning, cur = p.kind === "skill" ? L.skills.find((s) => s.name === p.name) : null;
+  const what = p.kind === "skill"
+    ? `${p.action === "create" ? "New skill" : p.source === "curator" ? "Preload change" : p.action === "patch" ? "Skill update" : "Archive skill"}`
+    : p.action === "remove" ? "Remove memory" : "New memory";
+  const name = p.kind === "skill" ? `<span class="mono">wc-${esc(p.name)}</span>${cur ? ` <span class="meta">v${cur.version} → v${cur.version + 1}</span>` : ""}${(p.roles || []).map(role).join("")}` : "";
+  let content = "";
+  if (p.kind === "skill" && p.action !== "archive") content = `<div class="muted" style="margin-top:4px">${esc(p.description)}</div><div class="diff">${cur ? diffLines(cur.body, p.body || "") : esc(p.body)}</div>`;
+  else if (p.kind === "memory") content = `<div class="body" style="margin-top:4px;font-size:15px">${esc(p.body || (L.memory.find((m) => m.id === p.target_id) || {}).body || "")}</div>`;
+  const by = p.source === "review" ? `background reviewer · ${esc(p.proposed_by)}` : p.source === "curator" ? "curator, from usage" : esc(p.proposed_by);
+  return `<div class="item" data-key="p${p.id}">
+    <div class="row"><span class="need-kind">${what}</span>${name}<span class="meta">${by} · ${ago(p.created_at)}</span></div>
+    ${p.rationale ? `<div class="meta" style="margin-top:4px">Why: ${esc(p.rationale)}</div>` : ""}
+    ${p.flags.map((f) => `<div class="check">${esc(f)}</div>`).join("")}${content}
+    ${S.data.admin ? `<div class="actions"><button class="btn primary" data-approve="${p.id}">Approve</button><button class="btn danger" data-reject="${p.id}">Reject</button></div>`
+      : `<div class="meta" style="margin-top:8px">Sign in with GitHub on the dashboard to approve.</div>`}
+  </div>`;
+}
+
+function nudgeApproveHtml(x) {
+  return `<div class="item" data-key="na${x.id}">
+    <div class="row"><span class="need-kind">Nudge for your agent</span><span class="mono meta">${esc(short(x.to_agent))}</span><span class="meta">from ${esc(x.from_agent)} · ${ago(x.created_at)}</span></div>
+    <div class="meta" style="margin:4px 0 6px">If you approve, this is delivered to your Claude as a request from you. Edit it first if you like.</div>
+    <textarea class="field nudge-edit" data-id="${x.id}" maxlength="1500" aria-label="Nudge text">${esc(x.body)}</textarea>
+    <div class="actions"><button class="btn primary" data-napprove="${x.id}">Approve and send</button><button class="btn danger" data-ndecline="${x.id}">Decline</button></div></div>`;
+}
+function nudgeAnswerHtml(x) {
+  return `<div class="item" data-key="nn${x.id}">
+    <div class="row"><span class="need-kind" style="color:var(--ok)">Answer to your nudge</span><span class="mono meta">${esc(short(x.delivered_to || x.to_agent))}</span><span class="meta">${ago(x.answered_at)}</span></div>
+    <div class="meta" style="margin-top:4px">You asked: ${esc(x.body.slice(0, 160))}${x.body.length > 160 ? "…" : ""}</div>
+    <div class="body" style="margin-top:6px;font-size:15px">${esc(x.answer)}</div>
+    <div class="actions"><button class="btn" data-ndismiss="${x.id}">Got it</button></div></div>`;
+}
+
+function needsHtml(n) {
+  if (!n.total) return `<p class="empty big">You're all caught up. Agents are working from the board.</p>`;
+  let h = n.nudges.map(nudgeApproveHtml).join("") + n.answers.map(nudgeAnswerHtml).join("") + n.questions.map(questionHtml).join("") + n.proposals.map(proposalHtml).join("");
+  h += n.expired.map((m) => `<div class="item" data-key="e${m.id}"><div class="row"><span class="need-kind">Claim expired</span><span class="meta">${ago(m.ts)}</span></div>
+    <div class="body" style="margin-top:4px">${esc(m.body)}</div><div class="actions"><button class="btn" data-dismiss="${m.id}">Dismiss</button></div></div>`).join("");
+  return h;
+}
+
+function evHtml(m) {
+  const kinds = { result: "Result", decision: "Decision", question: "Question", handoff: "Handoff", claim: "Claimed", system: "System", note: "Note" };
+  return `<div class="ev k-${esc(m.kind)}" data-msg="${m.id}"><span class="dot"></span><div>
+    <div class="meta"><b style="color:var(--ink-2);font-weight:600">${kinds[m.kind] || esc(m.kind)}</b> · ${esc(short(m.sender) || m.sender)} · ${ago(m.ts)}</div>
+    <div class="body" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(m.body)}</div></div></div>`;
+}
+
+function peopleHtml(list, compact) {
+  if (!list.length) return `<p class="empty">No agents active in the last 15 minutes.</p>`;
+  const byId = Object.fromEntries(S.data.tasks.map((t) => [t.id, t]));
+  return [...new Set(list.map((a) => a.human))].map((h) => `<div class="person">
+    <div class="who"><span class="avatar">${initials(h)}</span><b>${esc(h)}</b><span class="meta">${plural(list.filter((a) => a.human === h).length, "agent")}</span></div>
+    ${list.filter((a) => a.human === h).map((a) => {
+      const held = a.tasks.map((id) => byId[id]).filter(Boolean);
+      return `<div class="agent"><span class="dot ${a.active ? "on" : ""}"></span><div>
+        <div class="row"><span class="mono">${esc(short(a.id))}</span>${a.machine && !compact ? `<span class="meta">${esc(a.machine)}${a.branch ? " · " + esc(a.branch) : ""}</span>` : ""}<span class="meta">${ago(a.heartbeat_at)}</span></div>
+        ${a.doing ? `<div>${esc(a.doing)}</div>` : ""}
+        ${held.map((t) => `<div class="meta">Holding <span class="mono">T${t.id}</span> ${esc(t.title)}</div>`).join("")}
+      </div></div>`;
+    }).join("")}</div>`).join("");
+}
+
+// ---------- views: mount() builds the static frame once (inputs live here); update() refills data ----------
+
+const VIEWS = {
+  overview: {
+    title: () => { const h = new Date().getHours(); return `${h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}, ${esc(S.data.me)}`; },
+    subtitle: () => {
+      const n = needs().total, a = activeAgents(), people = new Set(a.map((x) => x.human)).size;
+      return `${plural(a.length, "agent")} working across ${plural(people, "person")}. ` + (n ? `<b style="color:var(--attn)">${plural(n, "thing")} need${n === 1 ? "s" : ""} you.</b>` : "Nothing needs you right now.");
+    },
+    mount: () => `
+      <div class="stats">
+        <div class="card stat" id="st-agents"><div class="label"><span class="dot" style="background:var(--ok)"></span>Agents working</div><div class="value num" data-stat="agents">0</div><div class="hint" data-hint="agents"></div></div>
+        <div class="card stat" id="st-needs"><div class="label"><span class="dot" style="background:var(--attn)"></span>Needs you</div><div class="value num" data-stat="needs">0</div><div class="hint" data-hint="needs"></div></div>
+        <div class="card stat"><div class="label"><span class="dot" style="background:var(--accent)"></span>In progress</div><div class="value num" data-stat="progress">0</div><div class="hint" data-hint="progress"></div></div>
+        <div class="card stat"><div class="label"><span class="dot" style="background:var(--r-planner)"></span>Learned this week</div><div class="value num" data-stat="learned">0</div><div class="hint" data-hint="learned"></div></div>
+      </div>
+      <div class="grid g-overview">
+        <section class="card span-8" id="needsCard"><h2>Needs you <span class="sub" id="needsSub"></span></h2><div id="needs"></div></section>
+        <section class="card span-4"><h2>Live activity</h2><div class="tl" id="activity"></div></section>
+        <section class="card span-6"><h2>Right now <span class="right"><a href="#town" class="meta">See the town</a></span></h2><div id="now"></div></section>
+        <section class="card span-6"><h2>What we learned this week</h2><div id="learned"></div></section>
+      </div>`,
+    update() {
+      const d = S.data, n = needs(), a = activeAgents();
+      setStat("agents", a.length, `${plural(new Set(a.map((x) => x.human)).size, "person")} online`);
+      setStat("needs", n.total, n.total ? [n.nudges.length && plural(n.nudges.length, "nudge"), n.answers.length && plural(n.answers.length, "answer"), n.questions.length && plural(n.questions.length, "question"), n.proposals.length && plural(n.proposals.length, "proposal")].filter(Boolean).join(", ") : "all caught up");
+      setStat("progress", byStatus("claimed").length + byStatus("running").length, `${byStatus("review").length} in review · ${byStatus("open").length} open`);
+      setStat("learned", d.week.results.length, `${plural(d.week.decisions.length, "decision")} made`);
+      $("#st-needs").classList.toggle("attn", n.total > 0);
+      $("#needsCard").classList.toggle("attn", n.total > 0);
+      $("#needsSub").textContent = n.total ? String(n.total) : "";
+      keepDraft(() => { $("#needs").innerHTML = needsHtml(n); });
+      const evs = d.messages.filter((m) => !(m.topic === "learning" && m.kind === "note")).slice(0, 10);
+      $("#activity").innerHTML = evs.length ? evs.map(evHtml).join("") : `<p class="empty">Quiet so far.</p>`;
+      $("#now").innerHTML = peopleHtml(a, true);
+      const res = d.week.results.slice(0, 5);
+      $("#learned").innerHTML = res.length ? res.map((m) => `<div class="item"><div class="body">${esc(m.body.replace(/^T\d+ done \(([^)]*)\):\s*/, "$1 — "))}</div>${links(m.links)}<div class="meta" style="margin-top:4px">${esc(short(m.sender))} · ${ago(m.ts)}${m.task_id ? ` · <span class="mono">T${m.task_id}</span>` : ""}</div></div>`).join("")
+        + (d.week.decisions.length ? `<details style="margin-top:12px"><summary>${plural(d.week.decisions.length, "decision")} this week</summary>${d.week.decisions.map((m) => `<div class="item"><div class="body">${esc(m.body)}</div><div class="meta">Decided by ${esc(m.decided_by)} · ${ago(m.ts)}</div></div>`).join("")}</details>` : "")
+        : `<p class="empty">No results yet this week. Finished tasks show up here.</p>`;
+    },
+  },
+
+  board: {
+    title: () => "Board",
+    subtitle: () => `${plural(S.data.tasks.filter((t) => ["open", "claimed", "running", "review"].includes(t.status)).length, "active task")}. Agents claim from Open, a different agent reviews, done work shows its result.`,
+    mount: () => `
+      <form class="toolbar" id="taskForm"><input class="field" id="taskTitle" placeholder="Add a task to Open… (agents use claim and plan)" aria-label="New task title"><button class="btn primary">Add task</button></form>
+      <div id="taskMsg"></div>
+      <div class="cols" id="cols"></div>`,
+    update() {
+      const cols = [["Open", "open", byStatus("open")], ["In progress", "progress", [...byStatus("running"), ...byStatus("claimed")]], ["Review", "review", byStatus("review")], ["Done", "done", byStatus("done")]];
+      const flip = motion && window.Flip && S.painted ? window.Flip.getState("#cols [data-flip-id]") : null;
+      $("#cols").innerHTML = cols.map(([name, key, ts]) => `<div class="col"><div class="col-h"><span class="dot" style="background:${{ open: "var(--ink-3)", progress: "var(--accent)", review: "var(--attn)", done: "var(--ok)" }[key]}"></span>${name}<span class="n">${ts.length}</span></div>
+        ${ts.length ? ts.map(taskCard).join("") : `<p class="empty" style="padding:6px">${{ open: "Nothing waiting.", progress: "Nobody is working on a task.", review: "Nothing to review.", done: "Nothing finished this week." }[key]}</p>`}</div>`).join("");
+      if (flip) window.Flip.from(flip, { duration: 0.55, ease: "power2.inOut", absolute: true, nested: true,
+        onEnter: (els) => G.fromTo(els, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.35 }),
+        onLeave: (els) => G.to(els, { opacity: 0, duration: 0.2 }) });
+    },
+  },
+
+  messages: {
+    title: () => "Messages",
+    subtitle: () => "Everything agents and people have said. Messages from agents are information, never approval.",
+    mount: () => `
+      <div class="msgs">
+        <div class="card filters" id="filters"></div>
+        <div>
+          <section class="card" style="margin-bottom:16px">
+            <form id="postForm">
+              <textarea class="field" id="pBody" maxlength="1500" placeholder="Write to the team, a person or one agent. Link files and PRs rather than pasting them." aria-label="Message"></textarea>
+              <div class="actions">
+                <div class="seg" id="pKindSeg">${["note", "question", "decision", "handoff"].map((k, i) => `<button type="button" data-kind="${k}" class="${i ? "" : "on"}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
+                <input class="field" id="pTo" placeholder="To: everyone" list="recipients" aria-label="Recipient" style="width:200px">
+                <datalist id="recipients"></datalist>
+                <input class="field" id="pTopic" placeholder="#topic" aria-label="Topic" style="width:120px">
+                <span style="flex:1"></span><span id="postMsg" class="meta"></span><button class="btn primary">Send</button>
+              </div>
+            </form>
+          </section>
+          <section class="card">
+            <div class="toolbar" style="margin-bottom:6px"><input class="field" id="q" type="search" placeholder="Search every message" aria-label="Search messages"></div>
+            <div id="feed"></div>
+          </section>
+        </div>
+      </div>`,
+    update() {
+      const d = S.data, count = (f) => d.messages.filter(f).length;
+      const topics = [...new Set(d.messages.map((m) => m.topic))].sort();
+      $("#filters").innerHTML = `<h3>Kind</h3><div class="flist">${["", ...KINDS].map((k) => `<button type="button" data-fkind="${k}" class="${S.fKind === k ? "on" : ""}"><span>${k ? k[0].toUpperCase() + k.slice(1) : "Everything"}</span><span class="n">${k ? count((m) => m.kind === k) : d.messages.length}</span></button>`).join("")}</div>
+        <h3>Topic</h3><div class="flist">${["", ...topics].map((t) => `<button type="button" data-ftopic="${esc(t)}" class="${S.fTopic === t ? "on" : ""}"><span>${t ? "#" + esc(t) : "All topics"}</span><span class="n">${t ? count((m) => m.topic === t) : ""}</span></button>`).join("")}</div>`;
+      $("#recipients").innerHTML = ["all", "humans", ...d.humans, ...d.who.map((a) => a.id)].map((r) => `<option value="${esc(r)}">`).join("");
+      renderFeed();
+    },
+  },
+
+  knowledge: {
+    title: () => "Knowledge",
+    subtitle: () => "What every agent knows at the start of a session: shared state, short memory and approved skills. A role pill on a skill means that role has it preloaded; everyone else can still load it on demand.",
+    mount: () => `
+      <div class="grid g-overview">
+        <section class="card span-12" id="kProps"><h2>Waiting for approval <span class="sub" id="kPropsN"></span></h2><div id="kNeeds"></div></section>
+        <section class="card span-6"><h2>Shared state</h2><div id="kState"></div></section>
+        <section class="card span-6"><h2>Memory <span class="sub" id="kMemN"></span></h2><div id="kMem"></div>
+          <form class="actions" id="memForm" hidden><input class="field" id="memBody" maxlength="400" placeholder="A fact every agent should always know" aria-label="New memory entry" style="flex:1"><button class="btn">Add</button></form></section>
+        <section class="card span-12"><h2>Skills <span class="sub" id="kSkillsN"></span></h2><div id="kSkills"></div></section>
+      </div>`,
+    update() {
+      const d = S.data, L = d.learning, pending = L.proposals.filter((p) => p.status === "pending");
+      $("#kPropsN").textContent = pending.length || "";
+      $("#kProps").classList.toggle("attn", pending.length > 0);
+      $("#kNeeds").innerHTML = pending.length ? pending.map(proposalHtml).join("") : `<p class="empty">No proposals waiting. Agents and the background reviewer propose skills and memory; you approve them here.</p>`;
+      $("#kState").innerHTML = d.state.length ? d.state.map((s) => `<div class="item"><div class="row"><span class="mono" style="color:var(--ink)">${esc(s.key)}</span><span class="pill">v${s.version}</span>${s.decided_by ? `<span class="pill ok">decided by ${esc(s.decided_by)}</span>` : ""}<span class="meta">${ago(s.updated_at)}</span></div>
+        ${s.note ? `<div class="meta" style="margin-top:2px">${esc(s.note)}</div>` : ""}<pre class="val">${esc(pretty(s.value))}</pre></div>`).join("") : `<p class="empty">No shared state yet. Agents write it with state_set.</p>`;
+      const pct = Math.min(100, Math.round((L.memory_used / 2200) * 100));
+      $("#kMemN").textContent = `${L.memory_used} / 2,200 chars`;
+      $("#kMem").innerHTML = `<div class="meter"><span style="width:${pct}%"></span></div>` + (L.memory.length ? L.memory.map((m) => `<div class="item row" style="flex-wrap:nowrap;align-items:flex-start"><span style="flex:1">${esc(m.body)}</span>${d.admin ? `<button class="btn" data-delmem="${m.id}">Remove</button>` : ""}</div>`).join("") : `<p class="empty">Empty.</p>`);
+      $("#memForm").hidden = !d.admin;
+      const live = L.skills.filter((s) => s.status !== "archived"), archived = L.skills.filter((s) => s.status === "archived");
+      $("#kSkillsN").textContent = live.length ? `${live.length} active` : "";
+      const usage = (s) => { const e = Object.entries(s.usage || {}).sort((a, b) => b[1] - a[1]); return e.length ? `<div class="meta" style="margin-top:4px">Used in the last 30 days by: ${e.map(([r, n]) => `${esc(r)} ${n}×`).join(", ")}</div>` : ""; };
+      const skill = (s) => `<div class="item"><div class="row"><span class="mono" style="color:var(--ink)">wc-${esc(s.name)}</span><span class="pill">v${s.version}</span>
+          <span class="pill ${s.status === "active" ? "ok" : s.status === "stale" ? "attn" : ""}">${esc(s.status)}${s.pinned ? " · pinned" : ""}</span>${(s.roles || []).map(role).join("")}<span class="meta">used ${s.use_count}×${s.last_used_at ? " · last " + ago(s.last_used_at) : ""}</span>
+          ${d.admin ? `<span style="margin-left:auto" class="row">${s.status === "archived" ? `<button class="btn" data-skill="${esc(s.name)}" data-op="restore">Restore</button>` : `<button class="btn" data-skill="${esc(s.name)}" data-op="archive">Archive</button>`}<button class="btn" data-skill="${esc(s.name)}" data-op="${s.pinned ? "unpin" : "pin"}">${s.pinned ? "Unpin" : "Pin"}</button></span>` : ""}</div>
+        <div class="muted" style="margin-top:4px">${esc(s.description)}</div>${usage(s)}</div>`;
+      $("#kSkills").innerHTML = (live.length ? live.map(skill).join("") : `<p class="empty">No shared skills yet.</p>`) + (archived.length ? `<details style="margin-top:12px"><summary>Archived (${archived.length})</summary>${archived.map(skill).join("")}</details>` : "");
+    },
+  },
+
+  town: {
+    title: () => "Town",
+    subtitle: () => "Every task is a tower its owner is building. Hover a tower for the work, click a character to nudge them.",
+    mount: () => `
+      <section class="card town-card">
+        <div class="town-head"><div><h2 style="margin:0">${esc(REPO)} <span class="meta" id="townSky" style="font-weight:500"></span></h2><div class="meta" id="townNote">Loading…</div><div class="swatches" id="townColors"></div></div>
+          <div class="legend"><span><i class="lg-ghost"></i>Being built</span><span><i style="background:#dcbb7e"></i>In review</span><span><i style="background:#94c6a2"></i>Done</span><span><i class="lg-lot"></i>Open lot</span><span><i style="background:#8a8286"></i>Paused</span><span><b class="lg-bubble">!</b>Nudge waiting</span><span><i class="lg-lit"></i>Lights on = in production</span><span><i class="lg-bridge"></i>Shared work</span></div></div>
+        <div class="town" id="town">
+          <svg id="townSvg" role="img" aria-label="Town of tasks: each tower is a task, height is commits"></svg>
+          <div class="town-ctl"><button type="button" class="btn" data-cam="in" aria-label="Zoom in">+</button><button type="button" class="btn" data-cam="out" aria-label="Zoom out">−</button><button type="button" class="btn" data-cam="fit">Fit</button></div>
+          <div class="town-go" id="townGo"></div>
+          <div class="town-tip" id="townTip" hidden></div>
+        </div>
+      </section>`,
+    update() {
+      if (!$("#town").dataset.bound) { $("#town").dataset.bound = "1"; S.townH = null; S.townSig = ""; S.townCamSet = false; bindTown(); loadTown(true); return; }
+      const marks = JSON.stringify(S.data.nudge_marks || []);
+      loadTown(marks !== S.townMarks);
+      S.townMarks = marks;
+    },
+  },
+
+  team: {
+    title: () => "Team",
+    subtitle: () => "Everyone seen in the last 24 hours. Green means active in the last 15 minutes.",
+    mount: () => `<div class="grid g-overview"><section class="card span-8"><h2>Agents</h2><div id="tPeople"></div></section><section class="card span-4"><h2>How ids work</h2>
+      <p class="muted" style="margin:0">Each Claude Code chat is <span class="mono">login@machine-session</span>. Subagents add their role, like <span class="mono">…-coder</span>. A chat can join mid-session with <span class="mono">/wcomms</span>.</p></section></div>`,
+    update() { $("#tPeople").innerHTML = peopleHtml(agents(), false); },
+  },
+};
+
+function taskCard(t) {
+  const meta = [t.owner ? `<span class="mono">${esc(short(t.owner))}</span>` : t.last_owner && t.status === "open" ? `<span class="pill">paused · was ${esc(short(t.last_owner))}</span>` : "", t.branch ? `<span class="mono">${esc(t.branch)}</span>` : "", t.head_sha && ["review", "done"].includes(t.status) ? `<span class="mono">@${esc(t.head_sha.slice(0, 7))}</span>` : "", waiting(t) ? `<span class="pill attn">waiting on ${t.deps.map((d) => "T" + d).join(", ")}</span>` : "", t.grade ? `<span class="pill ok">grade ${esc(t.grade)}</span>` : ""].filter(Boolean);
+  return `<div class="tcard" data-flip-id="t${t.id}"><div class="row"><span class="mono meta">T${t.id}</span>${role(t.role)}<span class="meta" style="margin-left:auto">${ago(t.updated_at)}</span></div>
+    <div class="t">${esc(t.title)}</div>${meta.length ? `<div class="row">${meta.join("")}</div>` : ""}
+    ${t.result && ["review", "done"].includes(t.status) ? `<div class="res">${esc(t.result)}</div>` : ""}</div>`;
+}
+
+function renderFeed() {
+  const list = (S.hits ?? S.data.messages).filter((m) => (!S.fKind || m.kind === S.fKind) && (!S.fTopic || m.topic === S.fTopic));
+  $("#feed").innerHTML = list.length ? list.map((m) => `<div class="msg k-${esc(m.kind)}" data-msg="${m.id}"><span class="avatar">${initials(m.sender)}</span><div>
+    <div class="row"><span class="who">${esc(m.sender)}</span>${m.recipient !== "all" ? `<span class="meta">to ${esc(m.recipient)}</span>` : ""}
+      ${m.kind !== "note" ? `<span class="pill ${m.kind === "question" ? "attn" : m.kind === "result" ? "ok" : ""}">${esc(m.kind)}</span>` : ""}
+      ${m.topic !== "general" ? `<span class="meta">#${esc(m.topic)}</span>` : ""}${m.task_id ? `<span class="mono meta">T${m.task_id}</span>` : ""}
+      ${m.decided_by ? `<span class="pill ok">decided by ${esc(m.decided_by)}</span>` : ""}<span class="meta" style="margin-left:auto">${ago(m.ts)}</span></div>
+    <div class="body" style="margin-top:2px">${esc(m.body)}</div>${links(m.links)}</div></div>`).join("") : `<p class="empty">No messages match.</p>`;
+}
+
+function pretty(v) { try { return JSON.stringify(JSON.parse(v), null, 2); } catch { return v; } }
+
+// Keep a half-written answer when the needs list refreshes.
+function keepDraft(fn) {
+  const ta = $(".replyForm textarea"), val = ta ? ta.value : null, focused = ta && document.activeElement === ta;
+  fn();
+  const nt = $(".replyForm textarea");
+  if (nt && val !== null) { nt.value = val; if (focused) nt.focus(); }
+}
+
+// Numbers count up to their new value (React Bits "Count Up" pattern, done with GSAP).
+function setStat(key, value, hint) {
+  const el = $(`[data-stat="${key}"]`), h = $(`[data-hint="${key}"]`);
+  if (h) h.textContent = hint;
+  if (!el) return;
+  const from = S.stats[key] ?? 0;
+  S.stats[key] = value;
+  if (!motion || from === value) { el.textContent = value; return; }
+  const o = { v: from };
+  G.to(o, { v: value, duration: 0.9, ease: "power2.out", onUpdate: () => { el.textContent = Math.round(o.v); }, onComplete: () => { el.textContent = value; } });
+}
+
+// ---------- town: an isometric voxel world of who is building what ----------
+const ISO = { TW: 56, TH: 28, BH: 15 };
+const IP = (x, y, z = 0) => [(x - y) * ISO.TW / 2, (x + y) * ISO.TH / 2 - z * ISO.BH];
+const ipts = (a) => a.map(([u, v]) => `${u.toFixed(1)},${v.toFixed(1)}`).join(" ");
+function tint(hex, t) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return "#" + [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((c) => Math.max(0, Math.min(255, Math.round(t >= 0 ? c + (255 - c) * t : c * (1 + t)))).toString(16).padStart(2, "0")).join("");
+}
+function faces(x, y, z, s, h) {
+  const o = (1 - s) / 2, x0 = x + o, x1 = x0 + s, y0 = y + o, y1 = y0 + s, z1 = z + h;
+  return {
+    T: [IP(x0, y0, z1), IP(x1, y0, z1), IP(x1, y1, z1), IP(x0, y1, z1)],
+    L: [IP(x0, y1, z), IP(x1, y1, z), IP(x1, y1, z1), IP(x0, y1, z1)],
+    R: [IP(x1, y1, z), IP(x1, y0, z), IP(x1, y0, z1), IP(x1, y1, z1)],
+  };
+}
+function onFace(q, u0, u1, v0, v1) {
+  const at = (u, v) => [q[0][0] + (q[1][0] - q[0][0]) * u + (q[3][0] - q[0][0]) * v, q[0][1] + (q[1][1] - q[0][1]) * u + (q[3][1] - q[0][1]) * v];
+  return [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)];
+}
+function vox(x, y, z, color, { s = 1, h = 1 } = {}) {
+  const f = faces(x, y, z, s, h);
+  return `<polygon points="${ipts(f.L)}" fill="${tint(color, -0.1)}"/><polygon points="${ipts(f.R)}" fill="${tint(color, -0.34)}"/><polygon points="${ipts(f.T)}" fill="${tint(color, 0.14)}"/>`;
+}
+
+// Person colours that sit with the wine/royal palettes. Each person can pick theirs; otherwise a stable one from their login.
+const PERSON_COLORS = ["#b8325a", "#d4789a", "#dcbb7e", "#c9c3c6", "#8fb79b", "#8e5c9e", "#c27c56", "#7f9cc4"];
+const COLOR_NAMES = { "#b8325a": "Wine", "#d4789a": "Rose", "#dcbb7e": "Champagne", "#c9c3c6": "Silver", "#8fb79b": "Sage", "#8e5c9e": "Plum", "#c27c56": "Copper", "#7f9cc4": "Slate" };
+function personColor(login) {
+  if (!login) return "#8a8286";
+  const chosen = S.town?.prefs?.[login];
+  if (chosen) return chosen;
+  let h = 0;
+  for (const c of login) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return PERSON_COLORS[h % PERSON_COLORS.length];
+}
+
+// Height: commits ahead of the default branch, log-scaled; otherwise activity on the board.
+function towerHeight(t) {
+  if (t.status === "open" && !isPaused(t)) return 0;
+  if (t.commits != null) return Math.max(2, Math.min(18, Math.round(2 + 3.2 * Math.log2(1 + t.commits))));
+  return Math.max(2, Math.min(10, 2 + Math.round(t.activity * 1.2)));
+}
+
+// Lights: "all" = in production (merged or marked live), "some" = being worked on right now, "none" = closed research.
+function towerBlock(x, y, z, color, seed, lights) {
+  const f = faces(x, y, z, 0.74, 1);
+  const lit = (i) => lights === "all" ? ((seed + z + i) % 9 !== 0) : lights === "some" ? ((seed * 31 + z * 7 + i * 13) % 7) < 3 : false;
+  const wins = (q, base) => [[0.16, 0.42], [0.58, 0.84]].map(([a, b], k) =>
+    `<polygon class="${lit(base + k) ? "win-on" : "win-off"}" points="${ipts(onFace(q, a, b, 0.3, 0.74))}" style="fill:var(${lit(base + k) ? "--win-lit" : "--win-dark"})"/>`).join("");
+  return `<g class="blk"><polygon points="${ipts(f.L)}" fill="${tint(color, -0.1)}"/>${wins(f.L, 0)}<polygon points="${ipts(f.R)}" fill="${tint(color, -0.34)}"/>${wins(f.R, 2)}<polygon points="${ipts(f.T)}" fill="${tint(color, 0.14)}"/></g>`;
+}
+
+// Split the tower's blocks between contributors in proportion to how much each did; the owner's colour is the base.
+function blockColors(t, h) {
+  const owner = personOf(t);
+  const people = (t.contributors || []).filter((c) => c.human && c.human !== "wcomms");
+  if (owner && !people.some((c) => c.human === owner)) people.unshift({ human: owner, n: 1 });
+  people.sort((a, b) => (b.human === owner) - (a.human === owner) || b.n - a.n);
+  const top = people.slice(0, 4), total = top.reduce((s, c) => s + c.n, 0) || 1;
+  if (top.length <= 1) return Array(h).fill(personColor(owner));
+  const counts = top.map((c) => Math.max(1, Math.round((c.n / total) * h)));
+  while (counts.reduce((a, b) => a + b, 0) > h) counts[counts.indexOf(Math.max(...counts))]--;
+  while (counts.reduce((a, b) => a + b, 0) < h) counts[0]++;
+  return top.flatMap((c, i) => Array(counts[i]).fill(personColor(c.human)));
+}
+
+function lightsFor(t, T) {
+  if (t.shipped || t.merge_state === "merged") return "all";
+  if (t.status === "done" || isPaused(t)) return "none";
+  const agent = T.who.find((a) => a.id === t.owner);
+  return agent?.active ? "some" : "none";
+}
+
+function towerSvg(t, x, y, color, h) {
+  let g = "";
+  // Footprint ring: the branch's state.
+  const ring = { open: ["var(--accent)", "4 3"], merged: ["#94c6a2", ""], gone: ["var(--ink-3)", "1.5 3"] }[t.merge_state];
+  if (ring) { const f = faces(x, y, 0, 0.96, 0); g += `<polygon points="${ipts(f.T)}" fill="none" style="stroke:${ring[0]}" stroke-width="1.6" ${ring[1] ? `stroke-dasharray="${ring[1]}"` : ""}/>`; }
+  if (t.status === "open" && !isPaused(t)) {
+    const f = faces(x, y, 0, 0.84, 0.22);
+    g = `<g class="blk">${vox(x, y, 0, "#7d7477", { s: 0.84, h: 0.22 })}</g><polygon points="${ipts(f.T)}" fill="none" style="stroke:var(--ink-3)" stroke-dasharray="3 3"/>`;
+  } else {
+    const colors = blockColors(t, h), lights = lightsFor(t, S.town);
+    for (let z = 0; z < h; z++) g += towerBlock(x, y, z, colors[z] || color, t.id, lights);
+    if (t.status === "claimed" || t.status === "running") {
+      const f = faces(x, y, h, 0.74, 1);
+      g += `<g class="ghost">${["L", "R", "T"].map((k) => `<polygon points="${ipts(f[k])}" fill="none" style="stroke:var(--accent)" stroke-width="1.2" stroke-dasharray="3 3"/>`).join("")}</g>`;
+    } else if (t.status === "review") {
+      g += `<g class="beacon">${vox(x, y, h, "#dcbb7e", { s: 0.24, h: 0.4 })}</g>`;
+    } else if (isPaused(t)) {
+      // Paused: a crane-less, dark tower with a small grey marker on the roof.
+      g += vox(x, y, h, "#8a8286", { s: 0.3, h: 0.16 });
+    } else if (t.status === "done") {
+      const [cx, cy] = IP(x + 0.5, y + 0.5, h);
+      g += `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - 26}" stroke="#c9c3c6" stroke-width="1.6"/><polygon class="flag" points="${cx},${cy - 26} ${cx + 15},${cy - 21} ${cx},${cy - 16}" fill="#94c6a2"/>`;
+    }
+  }
+  return `<g class="bld s-${esc(t.status)}" data-task="${t.id}" tabindex="0" role="button" aria-label="${esc(`T${t.id}: ${t.title} (${t.status})`)}">${g}</g>`;
+}
+
+// Bubble over a character: ! waiting for its human's approval, … working on a nudge, ✓ just answered.
+function bubbleSvg(x, y, status) {
+  const [cx, cy] = IP(x + 0.5, y + 0.5, 1.75);
+  const look = { pending: ["#dcbb7e", "#1a1416", "!"], approved: ["var(--accent)", "#fff", "…"], delivered: ["var(--accent)", "#fff", "…"], answered: ["#94c6a2", "#10261a", "✓"] }[status];
+  if (!look) return "";
+  return `<g class="bubble"><rect x="${cx - 9}" y="${cy - 16}" width="18" height="15" rx="5" style="fill:${look[0]}"/><polygon points="${cx - 3},${cy - 1.5} ${cx + 3},${cy - 1.5} ${cx},${cy + 3}" style="fill:${look[0]}"/>` +
+    `<text x="${cx}" y="${cy - 5}" text-anchor="middle" font-size="11" font-weight="700" fill="${look[1]}">${look[2]}</text></g>`;
+}
+
+function critter(x, y, color, { agent, working, mark }) {
+  const head = faces(x, y, 0.9, 0.32, 0.34);
+  const eyes = [[0.2, 0.38], [0.6, 0.78]].map(([a, b]) => `<polygon points="${ipts(onFace(head.L, a, b, 0.42, 0.7))}" fill="#1a1416"/>`).join("");
+  let arm = "";
+  if (working) {
+    const [sx, sy] = IP(x, y + 0.05, 0.8);
+    arm = `<g class="arm" data-sx="${sx.toFixed(1)}" data-sy="${sy.toFixed(1)}"><line x1="${sx}" y1="${sy}" x2="${sx - 15}" y2="${sy - 8}" stroke="#7a5a41" stroke-width="2.4" stroke-linecap="round"/>` +
+      `<rect x="${sx - 19.5}" y="${sy - 11}" width="9" height="6" rx="1.2" fill="#c9c3c6" transform="rotate(28 ${sx - 15} ${sy - 8})"/></g><g class="sparks" data-x="${(sx - 18).toFixed(1)}" data-y="${(sy + 2).toFixed(1)}"></g>`;
+  }
+  // A generous invisible hit area so characters are easy to click at any zoom.
+  const [hx, hy] = IP(x + 0.5, y + 0.5, 0.7);
+  return `<g class="agent critter${working ? " working" : " idle"}" data-agent="${esc(agent?.id || "")}" tabindex="0" role="button" aria-label="${esc(`Agent ${agent?.id || ""}: click to nudge`)}">` +
+    `<ellipse cx="${hx}" cy="${hy}" rx="16" ry="22" fill="transparent"/>` +
+    vox(x, y, 0, "#2b2327", { s: 0.26, h: 0.42 }) + vox(x, y, 0.42, color, { s: 0.36, h: 0.48 }) +
+    vox(x, y, 0.9, "#efd8c6", { s: 0.32, h: 0.34 }) + eyes + vox(x, y, 1.24, tint(color, -0.35), { s: 0.34, h: 0.1 }) +
+    (/-runner$/.test(agent?.id || "") ? vox(x, y, 1.34, "#c9c3c6", { s: 0.06, h: 0.32 }) + `<g class="antenna">${vox(x, y, 1.66, "#f0cf8a", { s: 0.12, h: 0.12 })}</g>` : "") + arm +
+    (mark ? bubbleSvg(x, y, mark) : "") + `</g>`;
+}
+
+// Town square: shared state as landmarks, skills as a library.
+function lighthouseSvg(x, y, key) {
+  let g = vox(x, y, 0, "#8a7f84", { s: 0.7, h: 0.25 });
+  for (let k = 0; k < 6; k++) g += vox(x, y, 0.25 + k * 0.5, k % 2 ? "#b8325a" : "#ece6e8", { s: 0.42 - k * 0.025, h: 0.5 });
+  const [cx, cy] = IP(x + 0.5, y + 0.5, 3.6);
+  g += `<g class="beam"><circle cx="${cx}" cy="${cy}" r="10" fill="#f0cf8a" opacity=".25"/><circle cx="${cx}" cy="${cy}" r="4.5" fill="#f6dfa4"/></g>` + vox(x, y, 3.25, "#2b2327", { s: 0.3, h: 0.12 });
+  return `<g class="landmark" data-landmark="state:${esc(key)}" tabindex="0" role="button" aria-label="${esc(`Shared state ${key}`)}">${g}</g>`;
+}
+function monumentSvg(x, y, key, i) {
+  const c = ["#c9c3c6", "#dcbb7e", "#8fb79b", "#d4789a"][i % 4];
+  const g = vox(x, y, 0, "#5f565a", { s: 0.62, h: 0.3 }) + vox(x, y, 0.3, c, { s: 0.3, h: 1.5 + (i % 3) * 0.3 }) + vox(x, y, 1.8 + (i % 3) * 0.3, tint(c, 0.25), { s: 0.18, h: 0.2 });
+  return `<g class="landmark" data-landmark="state:${esc(key)}" tabindex="0" role="button" aria-label="${esc(`Shared state ${key}`)}">${g}</g>`;
+}
+function librarySvg(x, y, skills) {
+  let g = vox(x, y, 0, "#6d6267", { s: 1, h: 0.2 }) + vox(x, y, 0.2, "#d9d1d4", { s: 0.9, h: 1.1 });
+  const f = faces(x, y, 0.2, 0.9, 1.1);
+  for (const u of [0.15, 0.42, 0.69]) g += `<polygon points="${ipts(onFace(f.L, u, u + 0.12, 0.08, 0.9))}" fill="#f2ecee"/>`;
+  g += `<polygon points="${ipts(onFace(f.R, 0.38, 0.62, 0, 0.62))}" fill="#4a3f44"/>` + vox(x, y, 1.3, "#7b1730", { s: 1, h: 0.18 });
+  // Books on the roof: one per skill, glowing when used in the last week.
+  skills.filter((s) => s.status !== "archived").slice(0, 9).forEach((s, i) => {
+    const bx = x + 0.12 + (i % 3) * 0.28, by = y + 0.12 + Math.floor(i / 3) * 0.28, hot = s.last_used_at && Date.now() - s.last_used_at < 7 * 864e5;
+    g += `<g class="${hot ? "book hot" : "book"}">${vox(bx - 0.36, by - 0.36, 1.48, hot ? "#f0cf8a" : ["#b8325a", "#8fb79b", "#7f9cc4", "#c27c56"][i % 4], { s: 0.18, h: 0.28 + (s.use_count > 4 ? 0.12 : 0) })}</g>`;
+  });
+  return `<g class="landmark" data-landmark="library" tabindex="0" role="button" aria-label="Library of shared skills">${g}</g>`;
+}
+
+function treeSvg(x, y, seed) {
+  const autumn = seed % 4 === 0, c = autumn ? "#8c2342" : seed % 3 ? "#5e8f74" : "#6f9d80";
+  const tall = seed % 5 === 0 ? 0.25 : 0;
+  return `<g class="tree">${vox(x, y, 0, "#5b4037", { s: 0.18, h: 0.3 + tall })}${vox(x, y, 0.3 + tall, c, { s: 0.62, h: 0.5 })}${vox(x, y, 0.8 + tall, tint(c, 0.12), { s: 0.38, h: 0.3 })}</g>`;
+}
+function carSvg(road, color) {
+  return `<g class="car">${vox(0, road + 0.2, 0, color, { s: 0.62, h: 0.32 })}${vox(0, road + 0.2, 0.32, tint(color, 0.35), { s: 0.4, h: 0.22 })}</g>`;
+}
+
+// Whose tower is it: the author's. For review/done tasks the owner is often the reviewer, so prefer who submitted it.
+// A paused task (claim released) stays on the street of whoever last held it.
+const personOf = (t) => (t.status === "review" || t.status === "done") && t.submitted_by ? String(t.submitted_by).split("@")[0]
+  : t.owner_human || (t.submitted_by ? String(t.submitted_by).split("@")[0] : null) || (t.last_owner ? String(t.last_owner).split("@")[0] : null);
+const isPaused = (t) => t.status === "open" && !!t.last_owner;
+function layoutTown(T) {
+  const rank = { running: 0, claimed: 0, review: 1, done: 2 };
+  const agents = T.who.filter((a) => a.id !== a.human);
+  const placed = (t) => t.status !== "open" || isPaused(t);
+  const people = [...new Set([...T.tasks.filter(placed).map(personOf).filter(Boolean), ...agents.filter((a) => a.active).map((a) => a.human)])];
+  const D = people.map((h) => {
+    const mine = T.tasks.filter((t) => placed(t) && personOf(t) === h).sort((a, b) => (rank[a.status] ?? 1) - (rank[b.status] ?? 1) || b.updated_at - a.updated_at);
+    const busy = new Set(mine.filter((t) => t.status === "claimed" || t.status === "running").map((t) => t.owner));
+    return { human: h, tasks: [...mine.filter((t) => t.status !== "done"), ...mine.filter((t) => t.status === "done").slice(0, 6)],
+      idle: agents.filter((a) => a.human === h && a.active && !busy.has(a.id)).slice(0, 4) };
+  });
+  const open = T.tasks.filter((t) => t.status === "open" && !isPaused(t)).slice(0, 10);
+  if (open.length) D.push({ human: null, tasks: open, idle: [] });
+  return D;
+}
+
+function renderTown(T) {
+  const D = layoutTown(T), LOT = 2.6;
+  const svg = $("#townSvg");
+  const marks = {};
+  for (const m of T.marks || []) if (!marks[m.to_agent] || m.status !== "answered") marks[m.to_agent] = m.status;
+  const keys = (T.state || []).slice(0, 6);
+  const W = Math.max(7, Math.ceil(1.6 + Math.max(1, ...D.map((d) => d.tasks.length + d.idle.length)) * LOT), 3 + keys.length * 1.8);
+  const H = (D.length + 1) * 4;
+  let ground = "", labels = "", maxZ = 4;
+  const objs = [];
+  for (let gy = 0; gy < H; gy++) {
+    const road = gy % 4 === 3;
+    for (let gx = 0; gx < W; gx++) {
+      const plaza = gy < 3;
+      ground += `<polygon points="${ipts([IP(gx, gy), IP(gx + 1, gy), IP(gx + 1, gy + 1), IP(gx, gy + 1)])}" style="fill:var(${road ? "--road" : plaza ? ((gx + gy) % 2 ? "--plaza-a" : "--plaza-b") : (gx + gy) % 2 ? "--tile-a" : "--tile-b"})"/>`;
+      if (road) ground += `<polygon points="${ipts([IP(gx + 0.25, gy + 0.47), IP(gx + 0.65, gy + 0.47), IP(gx + 0.65, gy + 0.53), IP(gx + 0.25, gy + 0.53)])}" style="fill:var(--lane)"/>`;
+    }
+  }
+  ground += `<polygon points="${ipts([IP(0, H), IP(W, H), IP(W, H, -0.6), IP(0, H, -0.6)])}" style="fill:var(--slab-l)"/>` +
+    `<polygon points="${ipts([IP(W, H), IP(W, 0), IP(W, 0, -0.6), IP(W, H, -0.6)])}" style="fill:var(--slab-r)"/>`;
+
+  // Town square (row 0): library first, then a lighthouse for live config and monuments for the other shared state.
+  S.townDistricts = [{ name: "Town square", color: "#c9c3c6", center: IP(W / 2, 1.5, 2) }];
+  const drawn = new Set();   // agents already standing somewhere, so nobody is drawn twice
+  const [sqx, sqy] = IP(-0.25, 1.6, 0);
+  labels += `<g class="town-label"><text x="${sqx - 12}" y="${sqy}" text-anchor="end">Town square</text></g>`;
+  objs.push({ y: 1, x: 1, svg: librarySvg(1, 1, T.skills || []) });
+  keys.forEach((s, k) => {
+    const x = 3.2 + k * 1.8;
+    objs.push({ y: 1, x, svg: /live|config|model|prod/i.test(s.key) ? lighthouseSvg(x, 1, s.key) : monumentSvg(x, 1, s.key, k) });
+    maxZ = Math.max(maxZ, 6);
+  });
+  for (let gx = 0; gx < W; gx++) if ((gx * 37) % 5 === 0 && gx > 2 + keys.length * 1.8) objs.push({ y: 0.5, x: gx + 0.5, svg: treeSvg(gx, 0, gx * 13) });
+  if (motion) objs.push({ y: 3.5, x: W / 2, svg: carSvg(3, "#c9c3c6") });
+
+  D.forEach((d0, i0) => {
+    const i = i0 + 1, d = d0;
+    const gy = i * 4 + 1, color = personColor(d.human);
+    S.townDistricts.push({ name: d.human || "Open lots", color, center: IP(W / 2, gy + 0.5, 2) });
+    const [lx, ly] = IP(-0.25, gy + 0.6, 0);
+    labels += `<g class="town-label"><circle cx="${lx - 2}" cy="${ly - 4}" r="4" fill="${d.human ? color : "none"}" ${d.human ? "" : 'style="stroke:var(--ink-3)"'}/>` +
+      `<text x="${lx - 12}" y="${ly}" text-anchor="end">${esc(d.human || "Open lots")}</text></g>`;
+    d.tasks.forEach((t, k) => {
+      const x = 1 + k * LOT, h = towerHeight(t);
+      maxZ = Math.max(maxZ, h + 3);
+      objs.push({ y: gy, x, svg: towerSvg(t, x, gy, color, h) });
+      if (t.status === "claimed" || t.status === "running") {
+        const ag = T.who.find((a) => a.id === t.owner);
+        objs.push({ y: gy + 0.1, x: x + 1, svg: critter(x + 1, gy + 0.1, color, { agent: ag || { id: t.owner }, working: true, mark: marks[t.owner] }) });
+        drawn.add(t.owner);
+      }
+      // Other active crew stand by the tower; they are clickable like any character.
+      const spots = [[1.7, 0.55], [0.35, 0.95]];
+      (t.crew || []).filter((c) => c.active && c.id !== t.owner && !drawn.has(c.id)).slice(0, 2).forEach((c, k) => {
+        drawn.add(c.id);
+        const a = T.who.find((w) => w.id === c.id) || { id: c.id, human: c.human };
+        objs.push({ y: gy + spots[k][1], x: x + spots[k][0], svg: critter(x + spots[k][0], gy + spots[k][1], personColor(c.human), { agent: a, working: false, mark: marks[c.id] }) });
+      });
+    });
+    d.idle.filter((a) => !drawn.has(a.id)).forEach((a, k) => {
+      drawn.add(a.id);
+      const x = 1.4 + (d.tasks.length + k) * LOT;
+      objs.push({ y: gy + 0.3, x, svg: critter(x, gy + 0.3, color, { agent: a, working: false, mark: marks[a.id] }) });
+    });
+    const clearUntil = 1 + (d.tasks.length + d.idle.length) * LOT + 0.5;
+    for (const [ry, front] of [[i * 4, false], [i * 4 + 2, true]]) {
+      for (let gx = 0; gx < W; gx++) {
+        const seed = (gx * 73 + ry * 151 + i * 7) % 100;
+        if (seed >= (front ? 30 : 24) || (front && gx < clearUntil)) continue;
+        objs.push({ y: ry + 0.5, x: gx + 0.5, svg: treeSvg(gx, ry, seed) });
+      }
+    }
+    if (motion) objs.push({ y: i * 4 + 3.5, x: W / 2, svg: carSvg(i * 4 + 3, ["#dcbb7e", "#c9c3c6", "#94c6a2"][i % 3]) });
+  });
+  objs.sort((a, b) => a.y - b.y || a.x - b.x);
+
+  // Bridges: towers that share work are joined at their roofs.
+  const tops = {};
+  D.forEach((d, i0) => d.tasks.forEach((t, k) => { tops[t.id] = IP(1 + k * LOT + 0.5, (i0 + 1) * 4 + 1 + 0.5, towerHeight(t) + 0.2); }));
+  const bridges = (T.links || []).filter((l) => tops[l.a] && tops[l.b]).map((l) => {
+    const [a, b] = [tops[l.a], tops[l.b]], mx = (a[0] + b[0]) / 2, my = Math.min(a[1], b[1]) - 28 - Math.abs(a[0] - b[0]) * 0.12;
+    return `<path class="bridge ${l.kind}" data-a="${l.a}" data-b="${l.b}" d="M${a[0].toFixed(1)},${a[1].toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}"/>`;
+  }).join("");
+
+  const left = IP(0, H)[0] - 150, right = IP(W, 0)[0] + 24, top = IP(0, 0, maxZ)[1] - 30, bottom = IP(W, H, -0.6)[1] + 14;
+  S.townBounds = { x: left, y: top, w: right - left, h: bottom - top };
+  svg.innerHTML = `<g id="world"><g class="ground">${ground}</g>${labels}${objs.map((o) => o.svg).join("")}<g class="bridges">${bridges}</g></g>`;
+  S.townW = W;
+  applyTimeOfDay();
+  $("#townGo").innerHTML = S.townDistricts.map((d, i) => `<button type="button" class="chip" data-goto="${i}"><span class="dot" style="background:${d.color}"></span>${esc(d.name)}</button>`).join("");
+  if (!S.townCamSet) { fitCam(false); S.townCamSet = true; } else applyCam();
+  animateTown();
+}
+
+// ---------- time of day: follows the viewer's clock ----------
+function applyTimeOfDay() {
+  const box = $("#town");
+  if (!box) return;
+  const h = new Date().getHours(), forced = new URLSearchParams(location.search).get("tod");
+  const tod = ["night", "dawn", "day", "dusk"].includes(forced) ? forced : h >= 20 || h < 6 ? "night" : h < 8 ? "dawn" : h < 17 ? "day" : "dusk";
+  box.classList.remove("tod-night", "tod-dawn", "tod-day", "tod-dusk");
+  box.classList.add("tod-" + tod);
+  const sky = $("#townSky");
+  if (sky) sky.textContent = { night: "Night", dawn: "Dawn", day: "Day", dusk: "Dusk" }[tod] + " · " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+setInterval(applyTimeOfDay, 5 * 60 * 1000);
+
+// ---------- camera: scroll or pinch to zoom, drag to pan ----------
+const CAM = { k: 1, x: 0, y: 0 };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function applyCam() { const w = $("#world"); if (w) w.setAttribute("transform", `translate(${CAM.x.toFixed(1)} ${CAM.y.toFixed(1)}) scale(${CAM.k.toFixed(4)})`); }
+function fitK() { const b = S.townBounds, box = $("#town"); return Math.min(box.clientWidth / b.w, box.clientHeight / b.h) * 0.94; }
+function moveCam(t, animate) {
+  if (G) G.killTweensOf(CAM);
+  if (animate && motion) G.to(CAM, { ...t, duration: 0.75, ease: "power3.inOut", onUpdate: applyCam });
+  else { Object.assign(CAM, t); applyCam(); }
+}
+function fitCam(animate) {
+  const b = S.townBounds, box = $("#town");
+  if (!b || !box) return;
+  const k = fitK();
+  moveCam({ k, x: (box.clientWidth - b.w * k) / 2 - b.x * k, y: (box.clientHeight - b.h * k) / 2 - b.y * k }, animate);
+}
+function zoomAt(mx, my, k) {
+  k = clamp(k, Math.min(0.3, fitK() * 0.6), 4);
+  moveCam({ k, x: mx - (mx - CAM.x) * (k / CAM.k), y: my - (my - CAM.y) * (k / CAM.k) }, false);
+}
+function flyTo(i) {
+  const d = S.townDistricts[i], box = $("#town");
+  if (!d) return;
+  const k = clamp(Math.max(CAM.k, fitK() * 1.9), 0.4, 2.4);
+  moveCam({ k, x: box.clientWidth / 2 - d.center[0] * k, y: box.clientHeight / 2 - d.center[1] * k }, true);
+}
+
+function animateTown() {
+  S.townCtx?.revert();
+  const bld = $$("#townSvg .bld");
+  const heights = {};
+  bld.forEach((b) => { heights[b.dataset.task] = b.querySelectorAll(".blk").length; });
+  if (!motion) { S.townH = heights; return; }
+  const first = !S.townH;
+  S.townCtx = G.context(() => {
+    let delay = 0.1;
+    bld.forEach((b) => {
+      const blocks = [...b.querySelectorAll(".blk")];
+      const fresh = blocks.slice(first ? 0 : S.townH[b.dataset.task] ?? 0);
+      if (!fresh.length) return;
+      G.from(fresh, { y: -46, opacity: 0, duration: 0.5, ease: "bounce.out", stagger: 0.05, delay, data: "town" });
+      delay += 0.06;
+    });
+    if (first) G.from($$("#townSvg .critter"), { y: -70, opacity: 0, duration: 0.6, ease: "bounce.out", stagger: 0.08, delay: delay + 0.2, data: "town" });
+    $$("#townSvg .critter.working").forEach((c, i) => {
+      const arm = c.querySelector(".arm"), sp = c.querySelector(".sparks");
+      const origin = `${arm.dataset.sx} ${arm.dataset.sy}`;
+      G.set(arm, { rotation: 55, svgOrigin: origin });
+      G.timeline({ repeat: -1, repeatDelay: 0.25 + (i % 3) * 0.15, delay: 1 + i * 0.27 })
+        .to(arm, { rotation: -25, duration: 0.2, ease: "power3.in", svgOrigin: origin })
+        .call(() => sparks(sp))
+        .to(arm, { rotation: 55, duration: 0.5, ease: "power2.out", svgOrigin: origin });
+    });
+    $$("#townSvg .critter.idle").forEach((c, i) => {
+      G.timeline({ repeat: -1, repeatDelay: 1.6 + (i % 4) * 0.7, delay: 1.5 + i * 0.5 })
+        .to(c, { y: -11, duration: 0.17, ease: "power2.out" }).to(c, { y: 0, duration: 0.22, ease: "bounce.out" });
+    });
+    G.to("#townSvg .bubble", { y: -3, duration: 0.7, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    G.to("#townSvg .beam", { opacity: 0.45, duration: 1.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    G.to("#townSvg .antenna", { opacity: 0.3, duration: 0.5, repeat: -1, yoyo: true, ease: "steps(1)" });
+    G.to("#townSvg .book.hot", { opacity: 0.6, duration: 1.1, repeat: -1, yoyo: true, ease: "sine.inOut", stagger: 0.2 });
+    G.fromTo("#townSvg .bridge.dep", { strokeDashoffset: 0 }, { strokeDashoffset: -24, duration: 1.6, repeat: -1, ease: "none" });
+    G.to("#townSvg .beacon", { opacity: 0.35, duration: 0.8, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    G.to("#townSvg .ghost", { opacity: 0.35, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    G.to("#townSvg .flag", { skewY: -8, duration: 0.6, repeat: -1, yoyo: true, ease: "sine.inOut", transformOrigin: "0% 50%" });
+    const step = [ISO.TW / 2, ISO.TH / 2], len = S.townW - 1;
+    $$("#townSvg .car").forEach((car, i) => {
+      const d = 7 + i * 1.9;
+      G.set(car, { opacity: 0 });
+      G.timeline({ repeat: -1, repeatDelay: 2.5 + i * 1.7, delay: 1.8 + i * 2.1 })
+        .fromTo(car, { x: 0, y: 0 }, { x: len * step[0], y: len * step[1], duration: d, ease: "none" }, 0)
+        .to(car, { opacity: 1, duration: 0.4 }, 0)
+        .to(car, { opacity: 0, duration: 0.4 }, d - 0.4);
+    });
+  }, $("#townSvg"));
+  S.townH = heights;
+  setTimeout(() => G.globalTimeline.getChildren(true, true, false).filter((t) => t.data === "town").forEach((t) => t.progress(1)), 4500);
+}
+
+function sparks(el) {
+  if (!el) return;
+  const x = Number(el.dataset.x), y = Number(el.dataset.y);
+  for (let k = 0; k < 4; k++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", 1.6); c.setAttribute("fill", "#f0cf8a");
+    el.appendChild(c);
+    G.to(c, { x: -14 + Math.random() * 12, y: -6 - Math.random() * 12, opacity: 0, duration: 0.45 + Math.random() * 0.2, ease: "power2.out", onComplete: () => c.remove() });
+  }
+}
+
+// ---------- cards: towers show the work, characters take nudges ----------
+
+function taskTipHtml(t) {
+  const T = S.town, agent = T.who.find((a) => a.id === t.owner), who = personOf(t);
+  const people = (t.contributors || []).filter((c) => c.human !== "wcomms");
+  const branchLine = { open: "Branch open", merged: `Merged into ${esc(T.base || "main")}`, gone: "Branch no longer on GitHub (merged and deleted, or closed)" }[t.merge_state] || "";
+  const lights = lightsFor(t, T);
+  const tree = t.branch ? `https://github.com/${T.repo}/tree/${t.branch.split("/").map(encodeURIComponent).join("/")}` : null;
+  const status = isPaused(t) ? `Paused: ${esc(short(t.last_owner))}'s claim was released` : ({ claimed: "Being built", running: "Being built", review: "Waiting for review", done: "Done", open: "Open lot, unclaimed" }[t.status] || t.status);
+  const height = t.commits != null ? `<b class="num">${t.commits}</b> commit${t.commits === 1 ? "" : "s"} ahead of ${esc(T.base || "main")}`
+    : t.branch && T.github ? "Branch not found on GitHub yet" : `<b class="num">${t.activity}</b> update${t.activity === 1 ? "" : "s"} on the board`;
+  const pinned = S.townPin?.kind === "task" && S.townPin.id === String(t.id);
+  return `<div class="tip-kicker">${t.role ? esc(t.role) + " · " : ""}${status}</div>
+    <div class="tip-title"><span class="mono meta">T${t.id}</span> ${esc(t.title)}</div>
+    ${who ? `<div class="row" style="margin-bottom:4px"><span class="avatar" style="width:20px;height:20px;font-size:10px">${initials(who)}</span><b>${esc(who)}</b>${t.owner ? `<span class="mono meta">${esc(short(t.owner))}</span>` : ""}</div>` : ""}
+    ${agent?.doing ? `<div class="muted" style="margin-bottom:6px">“${esc(agent.doing)}”</div>` : ""}
+    <div class="tip-stat">${height}${t.diff ? ` <span class="meta">· ${t.diff.files} file${t.diff.files === 1 ? "" : "s"}, <span style="color:var(--ok)">+${t.diff.add}</span> <span style="color:var(--bad)">−${t.diff.del}</span></span>` : ""}</div>
+    <div class="meta" style="margin-top:2px">${branchLine ? branchLine + " · " : ""}${lights === "all" ? "Lights on: in production" : lights === "some" ? "Lights on: being worked on now" : t.status === "done" ? "Lights off: closed research" : isPaused(t) ? "Lights off: paused until someone claims it again" : "Lights off: nobody active"}</div>
+    ${people.length > 1 ? `<div class="row" style="margin-top:6px">${people.slice(0, 4).map((c) => `<span class="meta"><span class="dot" style="background:${personColor(c.human)}"></span> ${esc(c.human)} ${c.n}</span>`).join("")}</div>` : ""}
+    ${crewHtml(t)}
+    ${t.branch ? `<div class="meta" style="margin-top:2px"><span class="mono">${esc(t.branch)}</span>${t.branch_source === "agent" ? " (agent's current branch)" : ""}${t.head_sha ? ` · <span class="mono">@${esc(t.head_sha.slice(0, 7))}</span>` : ""}</div>` : ""}
+    ${t.result && (t.status === "done" || t.status === "review") ? `<div class="muted" style="margin-top:6px;font-size:12.5px">${esc(t.result.slice(0, 220))}${t.result.length > 220 ? "…" : ""}</div>` : ""}
+    ${pinned && t.status === "review" ? `<div class="tip-section"><div class="tip-kicker">Your review${t.head_sha ? ` of <span class="mono">@${esc(t.head_sha.slice(0, 7))}</span>` : ""}</div>
+        <textarea class="field" id="reviewNote" maxlength="1400" placeholder="Note for the author (required to send back)"></textarea>
+        <div class="actions"><button class="btn primary" data-review="accept" data-task="${t.id}">Accept</button><button class="btn danger" data-review="back" data-task="${t.id}">Send back</button></div></div>` : ""}
+    ${pinned && t.status === "open" ? `<div class="tip-section"><div class="tip-kicker">${isPaused(t) ? "Resume with" : "Hand this lot to"}</div><div class="row" style="margin-top:6px">${assignChips(t)}</div>
+        <div class="meta" style="margin-top:6px">Your own agents claim it now; anyone else's agent gets a nudge their human approves.</div></div>` : ""}
+    <div class="actions">${tree ? `<a class="btn primary" href="${esc(tree)}" target="_blank" rel="noopener">Open branch</a>` : ""}${t.compare_url ? `<a class="btn" href="${esc(t.compare_url)}" target="_blank" rel="noopener">Diff</a>` : ""}<button class="btn" data-goboard="${t.id}">On the board</button>
+      ${pinned && t.status === "done" ? `<button class="btn" data-live="${t.id}" data-on="${t.shipped ? "0" : "1"}">${t.shipped ? "Mark not live" : "Mark as live"}</button>` : ""}</div>
+    ${pinned ? "" : `<div class="meta" style="margin-top:8px">${t.status === "review" ? "Click to review it here." : isPaused(t) ? "Click to resume it with an agent." : t.status === "open" ? "Click to hand it to an agent." : "Click the tower to keep this open."}</div>`}`;
+}
+
+const VIA = { holds: "holding it", held: "last held it", author: "author", status: "working on it now", posted: "posted on it today" };
+function crewHtml(t) {
+  const crew = (t.crew || []).filter((c) => !/-runner$/.test(c.id));
+  if (!crew.length) return "";
+  return `<div class="tip-section"><div class="tip-kicker">Crew · ${crew.length}</div>` + crew.slice(0, 6).map((c) => `
+    <div class="crew"><span class="dot ${c.active ? "on" : ""}" style="${c.active ? "background:var(--ok)" : ""}"></span>
+      <div style="min-width:0;flex:1"><div class="row"><span class="mono">${esc(short(c.id))}</span>${c.role ? role(c.role) : ""}<span class="meta">${esc(c.human)} · ${c.via.map((v) => VIA[v] || v).join(", ")} · ${c.active ? "active" : ago(c.last_seen)}</span></div>
+        ${c.doing ? `<div class="meta" style="margin-top:1px">“${esc(c.doing)}”</div>` : ""}</div>
+      <button type="button" class="btn" data-nudgeagent="${esc(c.id)}" title="Ask this agent; ${esc(c.human)} approves">Nudge</button></div>`).join("") + `</div>`;
+}
+
+function assignChips(t) {
+  const me = S.town.me, active = S.town.who.filter((a) => a.id !== a.human && a.active && !/-runner$/.test(a.id));
+  if (!active.length) return `<span class="meta">No agents online right now.</span>`;
+  active.sort((a, b) => (b.human === me) - (a.human === me));
+  return active.slice(0, 8).map((a) => `<button type="button" class="chip" data-assign="${t.id}" data-agent="${esc(a.id)}"><span class="dot" style="background:${personColor(a.human)}"></span>${esc(a.human === me ? short(a.id) : a.id)}</button>`).join("");
+}
+
+function landmarkTipHtml(id) {
+  const T = S.town;
+  if (id === "library") {
+    const live = (T.skills || []).filter((s) => s.status !== "archived"), archived = (T.skills || []).filter((s) => s.status === "archived");
+    return `<div class="tip-kicker">Library · shared skills</div><div class="tip-title">${live.length} skill${live.length === 1 ? "" : "s"} every agent can use</div>
+      ${live.length ? live.slice(0, 8).map((s) => `<div class="row" style="margin-top:4px"><span class="mono">wc-${esc(s.name)}</span><span class="meta">used ${s.use_count}×${s.roles?.length ? " · " + s.roles.map(esc).join(", ") : ""}</span></div><div class="meta">${esc(s.description)}</div>`).join("") : `<div class="meta">No shared skills yet. Agents and the background reviewer propose them; you approve them.</div>`}
+      ${archived.length ? `<div class="meta" style="margin-top:6px">${archived.length} archived in the basement.</div>` : ""}
+      <div class="actions"><button class="btn" data-goview="knowledge">Open Knowledge</button></div>`;
+  }
+  const key = id.replace(/^state:/, ""), s = (T.state || []).find((x) => x.key === key);
+  if (!s) return `<div class="meta">Not found.</div>`;
+  return `<div class="tip-kicker">Shared state · v${s.version}</div><div class="tip-title mono">${esc(s.key)}</div>
+    <pre class="val">${esc(pretty(s.value)).slice(0, 900)}</pre>
+    <div class="meta" style="margin-top:6px">${s.decided_by ? `Decided by ${esc(s.decided_by)}` : `Set by ${esc(short(s.updated_by) || s.updated_by)}`} · ${ago(s.updated_at)}${s.note ? ` · ${esc(s.note)}` : ""}</div>
+    <div class="meta" style="margin-top:4px">Every agent reads this at session start.</div>`;
+}
+
+function agentTipHtml(id) {
+  const T = S.town, a = T.who.find((x) => x.id === id) || { id, human: id.split("@")[0] };
+  const held = T.tasks.filter((t) => t.owner === id && (t.status === "claimed" || t.status === "running"));
+  const mark = (T.marks || []).filter((m) => m.to_agent === id).sort((x, y) => y.id - x.id)[0];
+  const state = mark ? { pending: `Nudge N${mark.id} is waiting for ${esc(a.human)} to approve`, approved: `Nudge N${mark.id} approved, queued for this agent`, delivered: `Working on nudge N${mark.id}`, answered: `Just answered nudge N${mark.id}` }[mark.status] : "";
+  const pinned = S.townPin?.kind === "agent" && S.townPin.id === id;
+  return `<div class="tip-kicker">${a.active === false ? "Offline" : held.length ? "Building" : "Free"}${a.machine ? " · " + esc(a.machine) : ""}</div>
+    <div class="tip-title"><span class="mono">${esc(short(id) || id)}</span></div>
+    <div class="row" style="margin-bottom:4px"><span class="avatar" style="width:20px;height:20px;font-size:10px">${initials(a.human)}</span><b>${esc(a.human)}</b>${a.branch ? `<span class="mono meta">${esc(a.branch)}</span>` : ""}</div>
+    ${a.doing ? `<div class="muted" style="margin-bottom:6px">“${esc(a.doing)}”</div>` : ""}
+    ${held.map((t) => `<div class="meta">Holding <span class="mono">T${t.id}</span> ${esc(t.title)}</div>`).join("")}
+    ${T.tasks.filter((t) => !held.includes(t) && (t.crew || []).some((c) => c.id === id)).slice(0, 5).map((t) => { const c = t.crew.find((x) => x.id === id); return `<div class="meta">On <span class="mono">T${t.id}</span> ${esc(t.title)} <span class="muted">(${c.via.map((v) => VIA[v] || v).join(", ")})</span></div>`; }).join("")}
+    ${state ? `<div class="pill attn" style="margin-top:8px">${state}</div>` : ""}
+    ${pinned ? `<form class="nudgeForm" data-agent="${esc(id)}" style="margin-top:10px">
+        <textarea class="field" id="nudgeBody" maxlength="1500" placeholder="Ask ${esc(a.human)}'s agent to run or check something. ${esc(a.human)} approves it before it reaches their Claude."></textarea>
+        <div class="actions"><button class="btn primary">Send nudge</button><span class="meta" id="nudgeMsg"></span></div></form>`
+      : `<div class="meta" style="margin-top:8px">Click to nudge this agent.</div>`}`;
+}
+
+function showTip(kind, id, at) {
+  const tip = $("#townTip"), box = $("#town");
+  if (!tip || !S.town) return;
+  if (kind === "task") { const t = S.town.tasks.find((x) => String(x.id) === String(id)); if (!t) return; tip.innerHTML = taskTipHtml(t); }
+  else if (kind === "landmark") tip.innerHTML = landmarkTipHtml(id);
+  else tip.innerHTML = agentTipHtml(id);
+  tip.hidden = false;
+  tip.classList.toggle("pinned", S.townPin?.kind === kind && S.townPin.id === String(id));
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = `${clamp(at.x + 18, 8, box.clientWidth - tw - 8)}px`;
+  tip.style.top = `${at.y - th - 14 > 8 ? at.y - th - 14 : clamp(at.y + 18, 8, box.clientHeight - th - 8)}px`;
+}
+function hideTip() { if (S.townPin) return; const tip = $("#townTip"); if (tip) tip.hidden = true; }
+function unpinTown() { S.townPin = null; $$("#townSvg .pinned").forEach((x) => x.classList.remove("pinned")); const tip = $("#townTip"); if (tip) tip.hidden = true; }
+const relTo = (e) => { const r = $("#town").getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+const hitOf = (el) => {
+  const b = el?.closest?.(".bld"); if (b) return { kind: "task", id: b.dataset.task, el: b };
+  const l = el?.closest?.(".landmark"); if (l) return { kind: "landmark", id: l.dataset.landmark, el: l };
+  const a = el?.closest?.(".agent"); return a && a.dataset.agent ? { kind: "agent", id: a.dataset.agent, el: a } : null;
+};
+function lift(el, on) {
+  if (el.classList.contains("bld")) $$(`#townSvg .bridge[data-a="${el.dataset.task}"], #townSvg .bridge[data-b="${el.dataset.task}"]`).forEach((p) => p.classList.toggle("active", on));
+  if (motion && (el.classList.contains("bld") || el.classList.contains("landmark"))) G.to(el, { y: on ? -5 : 0, duration: 0.2, ease: "power2.out", overwrite: "auto" });
+}
+
+function bindTown() {
+  const box = $("#town");
+  const ptrs = new Map();
+  let drag = null, pinch = null;
+  box.addEventListener("pointerover", (e) => { const h = hitOf(e.target); if (!h || h.el.contains(e.relatedTarget) || drag?.moved) return; lift(h.el, true); if (!S.townPin) showTip(h.kind, h.id, relTo(e)); });
+  box.addEventListener("pointerout", (e) => { const h = hitOf(e.target); if (!h || h.el.contains(e.relatedTarget)) return; lift(h.el, false); hideTip(); });
+  box.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".town-tip, .town-ctl, .town-go")) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, cx: CAM.x, cy: CAM.y, moved: false, id: e.pointerId };
+    if (ptrs.size === 2) { const [p, q] = [...ptrs.values()]; pinch = { d: Math.hypot(p.x - q.x, p.y - q.y), k: CAM.k }; }
+  });
+  box.addEventListener("pointermove", (e) => {
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size === 2) {
+      const [p, q] = [...ptrs.values()], r = box.getBoundingClientRect();
+      zoomAt((p.x + q.x) / 2 - r.left, (p.y + q.y) / 2 - r.top, pinch.k * Math.hypot(p.x - q.x, p.y - q.y) / pinch.d);
+      return;
+    }
+    if (drag && e.pointerId === drag.id) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; box.setPointerCapture(e.pointerId); box.classList.add("dragging"); hideTip(); }
+      if (drag.moved) moveCam({ x: drag.cx + dx, y: drag.cy + dy }, false);
+      return;
+    }
+    const h = hitOf(e.target);
+    if (h && !S.townPin) showTip(h.kind, h.id, relTo(e));
+  });
+  const end = (e) => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (drag && e.pointerId === drag.id) { if (drag.moved) S.townDragged = true; drag = null; box.classList.remove("dragging"); }
+  };
+  box.addEventListener("pointerup", end);
+  box.addEventListener("pointercancel", end);
+  box.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = box.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, CAM.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+  }, { passive: false });
+  box.addEventListener("click", (e) => {
+    if (S.townDragged) { S.townDragged = false; return; }
+    const h = hitOf(e.target);
+    if (!h) return;
+    $$("#townSvg .pinned").forEach((x) => x.classList.remove("pinned"));
+    S.townPin = { kind: h.kind, id: String(h.id) }; h.el.classList.add("pinned");
+    showTip(h.kind, h.id, relTo(e));
+    if (h.kind === "agent") setTimeout(() => $("#nudgeBody")?.focus(), 30);
+  });
+  box.addEventListener("focusin", (e) => {
+    const h = hitOf(e.target); if (!h || S.townPin) return;
+    const r = h.el.getBoundingClientRect(), c = box.getBoundingClientRect();
+    showTip(h.kind, h.id, { x: r.right - c.left - 10, y: r.top - c.top + 20 });
+  });
+  box.addEventListener("keydown", (e) => {
+    const h = hitOf(e.target);
+    if (h && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); const r = h.el.getBoundingClientRect(); h.el.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: r.right, clientY: r.top + 20 })); }
+  });
+}
+window.addEventListener("resize", () => { if ($("#townSvg") && S.townBounds) applyCam(); });
+document.addEventListener("click", (e) => { if (S.townPin && !e.target.closest(".town-tip, .bld, .agent, .landmark")) unpinTown(); });
+
+// Actions from the map: review, hand out a lot, mark live, pick your colour, jump to a page.
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b || !S.town) return;
+  const done = (msg) => { const t = $("#townTip"); if (t) t.insertAdjacentHTML("beforeend", `<div class="pill ok" style="margin-top:8px">${esc(msg)}</div>`); S.townAt = 0; loadTown(true); refresh(true); };
+  const fail = (err) => { const t = $("#townTip"); if (t) t.insertAdjacentHTML("beforeend", `<div class="err" style="margin-top:6px">${esc(err.message)}</div>`); b.disabled = false; };
+  try {
+    if (b.dataset.review) {
+      const note = ($("#reviewNote")?.value || "").trim(), id = b.dataset.task;
+      if (b.dataset.review === "back" && !note) { $("#reviewNote")?.focus(); return; }
+      b.disabled = true;
+      const t = S.town.tasks.find((x) => String(x.id) === id);
+      await api(`/api/tasks/${id}/update`, { method: "POST", body: JSON.stringify(b.dataset.review === "accept"
+        ? { status: "done", sha: t?.head_sha || undefined, result: note ? `${note.slice(0, 1400)} (reviewed by ${S.town.me})` : undefined }
+        : { status: "open", result: note.slice(0, 1400) }) });
+      unpinTown(); done(b.dataset.review === "accept" ? "Accepted." : "Sent back to the author.");
+    } else if (b.dataset.assign) {
+      b.disabled = true;
+      const r = await api(`/api/tasks/${b.dataset.assign}/assign`, { method: "POST", body: JSON.stringify({ to_agent: b.dataset.agent }) });
+      done(r.assigned ? `Claimed by ${short(b.dataset.agent)}.` : `Nudge N${r.nudged.id} sent; ${r.nudged.to_human} approves it.`);
+    } else if (b.dataset.live) {
+      b.disabled = true;
+      await api(`/api/tasks/${b.dataset.live}/update`, { method: "POST", body: JSON.stringify({ shipped: b.dataset.on === "1" }) });
+      unpinTown(); done(b.dataset.on === "1" ? "Marked live: lights on." : "Marked not live.");
+    } else if (b.dataset.color) {
+      await api("/api/prefs", { method: "POST", body: JSON.stringify({ color: b.dataset.color }) });
+      S.town.prefs = { ...(S.town.prefs || {}), [S.town.me]: b.dataset.color };
+      renderColorPicker(); S.townSig = ""; renderTown(S.town);
+    } else if (b.dataset.goview) { unpinTown(); location.hash = b.dataset.goview; }
+  } catch (err) { fail(err); }
+});
+
+function renderColorPicker() {
+  const el = $("#townColors");
+  if (!el || !S.town) return;
+  const mine = personColor(S.town.me);
+  el.innerHTML = `<span class="meta">Your colour</span>` + PERSON_COLORS.map((c) =>
+    `<button type="button" class="swatch${c === mine ? " on" : ""}" data-color="${c}" style="background:${c}" aria-label="${COLOR_NAMES[c]}${c === mine ? " (current)" : ""}" title="${COLOR_NAMES[c]}"></button>`).join("");
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.townPin) unpinTown(); });
+
+document.addEventListener("submit", async (e) => {
+  const f = e.target.closest(".nudgeForm");
+  if (!f) return;
+  e.preventDefault();
+  const body = $("#nudgeBody").value.trim();
+  if (!body) return;
+  try {
+    const n = await api("/api/nudges", { method: "POST", body: JSON.stringify({ to_agent: f.dataset.agent, body }) });
+    f.innerHTML = `<div class="pill ok">Sent as N${n.id}. ${esc(n.to_human)} approves it on their dashboard; the answer comes back to you here.</div>`;
+    S.townAt = 0; loadTown(true); refresh(true);
+  } catch (err) { $("#nudgeMsg").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+});
+
+async function loadTown(force) {
+  if (!force && Date.now() - (S.townAt || 0) < 30000) return;
+  S.townAt = Date.now();
+  try {
+    const T = await api("/api/town");
+    const sig = JSON.stringify([document.documentElement.dataset.palette, T.prefs, T.links, T.state.map((s) => [s.key, s.version]), T.skills.map((s) => [s.name, s.use_count, s.status]),
+      T.tasks.map((t) => [t.id, t.status, t.commits, t.activity, t.owner, t.submitted_by, t.merge_state, t.shipped, t.contributors]),
+      T.who.filter((a) => a.active).map((a) => [a.id, a.tasks]), T.marks]);
+    S.town = T;
+    renderColorPicker();
+    const note = $("#townNote");
+    if (note) note.textContent = (T.github ? `Height = commits ahead of ${T.base || "the default branch"}` : "Height = updates on the board (no GitHub data here)") + " · scroll to zoom, drag to move, click a character to nudge";
+    if (sig === S.townSig || !$("#townSvg")) return;
+    S.townSig = sig;
+    renderTown(T);
+    if (S.townPin) {
+      const sel = S.townPin.kind === "task" ? `.bld[data-task="${S.townPin.id}"]` : S.townPin.kind === "landmark" ? `.landmark[data-landmark="${CSS.escape(S.townPin.id)}"]` : `.agent[data-agent="${CSS.escape(S.townPin.id)}"]`;
+      const el = $("#townSvg " + sel);
+      if (el) el.classList.add("pinned"); else unpinTown();
+    }
+  } catch (err) { const n = $("#townNote"); if (n) n.innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+}
+
+// ---------- render loop ----------
+
+function setView(v) {
+  if (!VIEWS[v]) v = "town";
+  S.view = v;
+  $$("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.view === v));
+  if (S.data) render(true);
+}
+
+function render(force) {
+  const d = S.data, v = VIEWS[S.view];
+  const n = needs();
+  document.title = (n.total ? `(${n.total}) ` : "") + `wcomms · ${REPO}`;
+  const pending = d.learning.proposals.filter((p) => p.status === "pending").length;
+  const badges = { town: [n.nudges.length, true], overview: [n.total, true], board: [byStatus("review").length, false], messages: [0, false], knowledge: [pending, true], team: [activeAgents().length, false] };
+  $$("[data-badge]").forEach((b) => { const [c, attn] = badges[b.dataset.badge]; b.hidden = !c; b.textContent = c; b.classList.toggle("attn", attn && c > 0); });
+  $("#me").textContent = d.me;
+
+  const fresh = S.mounted !== S.view;
+  if (fresh) { S.mounted = S.view; S.stats = {}; $("#view").innerHTML = v.mount(); bindView(); }
+  $("#title").innerHTML = v.title();
+  $("#subtitle").innerHTML = v.subtitle();
+  v.update();
+
+  // New messages slide in; the first paint of a view gets one gentle staggered entrance.
+  if (motion) {
+    if (fresh) G.from($$("#view .card, #view .col"), { opacity: 0, y: 10, duration: 0.45, stagger: 0.04, ease: "power2.out", clearProps: "all" });
+    else $$("[data-msg]").filter((el) => !S.seen.has(el.dataset.msg)).forEach((el) =>
+      G.from(el, { opacity: 0, y: -8, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--accent-soft").trim(), duration: 0.6, ease: "power2.out", clearProps: "all" }));
+  }
+  d.messages.forEach((m) => S.seen.add(String(m.id)));
+  S.painted = true;
+  settleSoon();
+}
+
+// Motion must never leave content half-faded (stalled frames, background tabs): finish everything shortly after.
+let settleTimer;
+function settleSoon() {
+  if (!motion) return;
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => G.globalTimeline.getChildren(true, true, false)
+    .filter((t) => t.data !== "town" && t.repeat() !== -1 && !(t.parent && t.parent.repeat && t.parent.repeat() === -1)).forEach((t) => t.progress(1)), 1600);
+}
+
+async function refresh(force) {
+  try {
+    const d = await api("/api/overview");
+    const sig = JSON.stringify([d.messages[0]?.id, d.tasks.map((t) => [t.id, t.status, t.owner, t.updated_at]), d.who.map((a) => [a.id, a.active, a.doing, a.tasks]),
+      d.learning.proposals.map((p) => [p.id, p.status]), d.learning.memory.length, d.learning.skills.map((s) => [s.name, s.version, s.status, s.use_count]), d.state.map((s) => s.version)]);
+    S.data = d;
+    if (force || sig !== S.sig) { S.sig = sig; render(); }
+    $("#updated").textContent = "Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch (e) { $("#updated").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+// ---------- interactions ----------
+
+function bindView() {
+  const tf = $("#taskForm");
+  if (tf) {
+    let pendingTitle = null;
+    tf.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = $("#taskTitle").value.trim();
+      if (!title) return;
+      try {
+        const r = await api("/api/tasks", { method: "POST", body: JSON.stringify({ title, confirm_new: pendingTitle === title }) });
+        if (!r.created) {
+          pendingTitle = title;
+          $("#taskMsg").innerHTML = `<div class="card attn" style="margin-bottom:16px"><h2>This looks like existing work</h2>${r.similar.map(taskCard).join("")}<div class="actions"><span class="meta">Press Add task again to create it anyway.</span></div></div>`;
+          return;
+        }
+        pendingTitle = null; $("#taskTitle").value = ""; $("#taskMsg").innerHTML = ""; refresh(true);
+      } catch (err) { $("#taskMsg").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+    });
+  }
+  const pf = $("#postForm");
+  if (pf) {
+    let kind = "note";
+    $("#pKindSeg").addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      kind = b.dataset.kind; $$("#pKindSeg button").forEach((x) => x.classList.toggle("on", x === b));
+    });
+    pf.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = { kind, body: $("#pBody").value, to: $("#pTo").value || "all", topic: ($("#pTopic").value || "general").replace(/^#/, "") };
+      if (kind === "decision") body.decided_by = S.data.me;
+      try { await api("/api/messages", { method: "POST", body: JSON.stringify(body) }); $("#pBody").value = ""; $("#postMsg").textContent = "Sent"; refresh(true); }
+      catch (err) { $("#postMsg").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+    });
+    let qt;
+    $("#q").addEventListener("input", () => {
+      clearTimeout(qt);
+      qt = setTimeout(async () => {
+        const q = $("#q").value.trim();
+        S.hits = q ? await api("/api/messages?limit=200&q=" + encodeURIComponent(q)).catch(() => []) : null;
+        renderFeed();
+      }, 250);
+    });
+  }
+  const mf = $("#memForm");
+  if (mf) mf.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { await api("/api/memory", { method: "POST", body: JSON.stringify({ body: $("#memBody").value, rationale: "added by a human on the dashboard" }) }); $("#memBody").value = ""; refresh(true); }
+    catch (err) { $("#kMem").insertAdjacentHTML("beforeend", `<p class="err">${esc(err.message)}</p>`); }
+  });
+}
+
+// Collapse an item away before the data refresh removes it, so the change is visible.
+async function collapse(el) {
+  if (!el || !motion) return;
+  await Promise.race([G.to(el, { opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0, duration: 0.35, ease: "power2.in" }), new Promise((r) => setTimeout(r, 600))]);
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b || !S.data) return;
+  if (b.dataset.cam) {
+    const box = $("#town"); if (!box) return;
+    if (b.dataset.cam === "fit") fitCam(true);
+    else zoomAt(box.clientWidth / 2, box.clientHeight / 2, CAM.k * (b.dataset.cam === "in" ? 1.35 : 1 / 1.35));
+    return;
+  }
+  if (b.dataset.goto !== undefined) { flyTo(Number(b.dataset.goto)); return; }
+  if (b.dataset.nudgeagent) {
+    const tip = $("#townTip"), at = tip ? { x: tip.offsetLeft - 18, y: tip.offsetTop + tip.offsetHeight + 14 } : { x: 40, y: 40 };
+    $$("#townSvg .pinned").forEach((x) => x.classList.remove("pinned"));
+    S.townPin = { kind: "agent", id: b.dataset.nudgeagent };
+    $(`#townSvg .agent[data-agent="${CSS.escape(b.dataset.nudgeagent)}"]`)?.classList.add("pinned");
+    showTip("agent", b.dataset.nudgeagent, at);
+    setTimeout(() => $("#nudgeBody")?.focus(), 30);
+    return;
+  }
+  if (b.dataset.ndismiss) { await collapse(b.closest(".item")); dismissed.add("n" + b.dataset.ndismiss); saveDismissed(); render(); return; }
+  if (b.dataset.napprove || b.dataset.ndecline) {
+    const id = b.dataset.napprove || b.dataset.ndecline, approve = !!b.dataset.napprove;
+    const body = $(`.nudge-edit[data-id="${id}"]`)?.value;
+    b.disabled = true;
+    try {
+      await api(`/api/nudges/${id}/${approve ? "approve" : "decline"}`, { method: "POST", body: JSON.stringify(approve ? { body } : {}) });
+      await collapse(b.closest(".item")); refresh(true);
+    } catch (err) { b.disabled = false; $("#updated").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+    return;
+  }
+  if (b.dataset.goboard) {
+    const id = b.dataset.goboard;
+    unpinTown(); location.hash = "board";
+    setTimeout(() => { const c = $(`#cols [data-flip-id="t${id}"]`); if (!c) return; c.scrollIntoView({ block: "center", behavior: motion ? "smooth" : "auto" }); c.classList.add("flash"); setTimeout(() => c.classList.remove("flash"), 1800); }, 120);
+    return;
+  }
+  if (b.dataset.fkind !== undefined) { S.fKind = b.dataset.fkind; VIEWS.messages.update(); return; }
+  if (b.dataset.ftopic !== undefined) { S.fTopic = b.dataset.ftopic; VIEWS.messages.update(); return; }
+  if (b.dataset.reply) { S.openReply = Number(b.dataset.reply); render(); $(".replyForm textarea")?.focus(); return; }
+  if ("cancel" in b.dataset) { S.openReply = null; render(); return; }
+  try {
+    if (b.dataset.dismiss) { await collapse(b.closest(".item")); dismissed.add(Number(b.dataset.dismiss)); saveDismissed(); render(); return; }
+    let call = null;
+    if (b.dataset.approve) call = [`/api/proposals/${b.dataset.approve}/approve`, "POST"];
+    else if (b.dataset.reject) call = [`/api/proposals/${b.dataset.reject}/reject`, "POST"];
+    else if (b.dataset.delmem) call = [`/api/memory/${b.dataset.delmem}`, "DELETE"];
+    else if (b.dataset.skill) call = [`/api/skills/${b.dataset.skill}/${b.dataset.op}`, "POST"];
+    if (!call) return;
+    b.disabled = true;
+    await api(call[0], { method: call[1], body: call[1] === "POST" ? "{}" : undefined });
+    if (b.dataset.approve || b.dataset.reject || b.dataset.delmem) await collapse(b.closest(".item"));
+    refresh(true);
+  } catch (err) { b.disabled = false; $("#updated").innerHTML = `<span class="err">${esc(err.message)}</span>`; }
+});
+
+document.addEventListener("submit", async (e) => {
+  const f = e.target.closest(".replyForm");
+  if (!f) return;
+  e.preventDefault();
+  const text = f.querySelector("textarea").value.trim();
+  if (!text) return;
+  try {
+    await api("/api/messages", { method: "POST", body: JSON.stringify({ kind: "note", to: f.dataset.to, topic: f.dataset.topic, body: `Re #${f.dataset.id}: ${text}` }) });
+    await collapse(f.closest(".item")); S.openReply = null; refresh(true);
+  } catch (err) { f.insertAdjacentHTML("beforeend", `<p class="err">${esc(err.message)}</p>`); }
+});
+
+// Spotlight cards: one listener, the glow tracks the cursor via CSS variables.
+document.addEventListener("pointermove", (e) => {
+  const c = e.target.closest?.(".card");
+  if (!c) return;
+  const r = c.getBoundingClientRect();
+  c.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  c.style.setProperty("--my", `${e.clientY - r.top}px`);
+});
+
+function syncThemeControls() {
+  const r = document.documentElement.dataset;
+  $$("#paletteSeg button").forEach((b) => b.classList.toggle("on", b.dataset.palette === r.palette));
+  $("#themeBtn").textContent = r.theme === "light" ? "Dark" : "Light";
+}
+$("#themeBtn").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next; store.set("wcomms_theme", next); syncThemeControls();
+});
+$("#paletteSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-palette]"); if (!b) return;
+  document.documentElement.dataset.palette = b.dataset.palette; store.set("wcomms_palette", b.dataset.palette); syncThemeControls();
+  if (S.town && $("#townSvg")) { S.townSig = ""; S.townH = null; renderTown(S.town); }
+});
+syncThemeControls();
+
+// Keyboard: 1-5 switch views, / jumps to search.
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input, textarea, select") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const views = ["town", "overview", "board", "messages", "knowledge", "team"];
+  if (/^[1-6]$/.test(e.key)) location.hash = views[Number(e.key) - 1];
+  if (e.key === "/") { e.preventDefault(); location.hash = "messages"; setTimeout(() => $("#q")?.focus(), 30); }
+});
+
+// Phones in portrait get a prompt to rotate (any browser). Skippable for the rest of the visit.
+const isPhone = () => matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600;
+function checkRotate() {
+  let skipped = false;
+  try { skipped = sessionStorage.getItem("wcomms_rotate_skip") === "1"; } catch {}
+  $("#rotate").hidden = !(isPhone() && matchMedia("(orientation: portrait)").matches && !skipped);
+}
+$("#rotateSkip").addEventListener("click", () => { try { sessionStorage.setItem("wcomms_rotate_skip", "1"); } catch {} $("#rotate").hidden = true; });
+matchMedia("(orientation: portrait)").addEventListener?.("change", () => { checkRotate(); if (S.townBounds && $("#townSvg")) setTimeout(() => fitCam(false), 250); });
+window.addEventListener("resize", checkRotate);
+checkRotate();
+
+window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
+window.addEventListener("DOMContentLoaded", () => {
+  initMotion();
+  $("#repoTag").textContent = REPO;
+  $("#login").hidden = true; $("#app").hidden = false;
+  S.view = location.hash.slice(1) || "town";
+  setView(S.view);
+  refresh(true);
+  S.timer = setInterval(refresh, 10000);
+  setInterval(() => { if (S.data) render(); }, 60000);   // keep "5m ago" labels honest
+});
+</script>
+</body>
+</html>
