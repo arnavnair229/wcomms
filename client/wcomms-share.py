@@ -74,7 +74,7 @@ class WS:
         self.sock = ssl.create_default_context().wrap_socket(raw, server_hostname=self.host) if u.scheme == "wss" else raw
         key = base64.b64encode(secrets.token_bytes(16)).decode()
         req = (f"GET {self.path} HTTP/1.1\r\nHost: {self.host}:{self.port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-               f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer {token}\r\n\r\n")
+               f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer {token}\r\nUser-Agent: wcomms/1.0\r\n\r\n")
         self.sock.sendall(req.encode())
         resp = b""
         while b"\r\n\r\n" not in resp:
@@ -140,7 +140,7 @@ class WS:
 
 def api(path, body):
     req = urllib.request.Request(API + path, method="POST", data=json.dumps(body).encode(),
-                                 headers={"Authorization": f"Bearer {TOKEN}", "content-type": "application/json"})
+                                 headers={"Authorization": f"Bearer {TOKEN}", "content-type": "application/json", "User-Agent": "wcomms/1.0"})
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.loads(r.read().decode() or "null")
 
