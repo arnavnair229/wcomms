@@ -35,13 +35,13 @@ def _config():
             url = f"{cfg['url'].rstrip('/')}/r/{cfg['repo']}"
         except Exception:
             pass
-    if not token:
-        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
     if not token and shutil.which("gh"):
         try:
             token = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=15).stdout.strip()
         except Exception:
             token = ""
+    if not token:
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
     return url, token
 
 
