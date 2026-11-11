@@ -1,13 +1,15 @@
 import { authenticate, handleAuth } from "./auth";
 import { Hub } from "./hub";
+import { Relay } from "./relay";
 import { buildTown } from "./town";
 import DASHBOARD_HTML from "./dashboard.html";
 import { json } from "./util";
 
-export { Hub };
+export { Hub, Relay };
 
 export interface Env {
   HUB: DurableObjectNamespace<Hub>;
+  RELAY: DurableObjectNamespace<Relay>;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
@@ -23,7 +25,7 @@ export interface Env {
 const SECURITY_HEADERS = {
   "content-security-policy":
     "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' wss:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "same-origin",
@@ -85,10 +87,19 @@ export default {
       return json({ error: `this wcomms deployment does not serve ${repo}. Ask its operator to add the owner to ALLOWED_OWNERS, or host your own (see README).` }, 403);
     }
     if (rest === "/" && req.method === "GET") return html(DASHBOARD_HTML);
-    if (!rest.startsWith("/api/") && rest !== "/mcp") return json({ error: "not found" }, 404);
+    if (!rest.startsWith("/api/") && rest !== "/mcp" && !rest.startsWith("/live/")) return json({ error: "not found" }, 404);
 
     const who = await authenticate(req, env, url, repo);
     if (who instanceof Response) return who;
+
+    // Live terminal relay: /live/<session id> (websocket, ?role=host|viewer) and /live/<id>/stats.
+    const live = rest.match(/^\/live\/([A-Za-z0-9_-]{6,64})(\/stats)?$/);
+    if (live) {
+      const relay = env.RELAY.get(env.RELAY.idFromName(`${repo}/${live[1]}`));
+      const h = new Headers(req.headers);
+      h.set("x-wcomms-human", who.login);
+      return relay.fetch(new Request(req.url, { method: req.method, headers: h }));
+    }
 
     const headers = new Headers(req.headers);
     headers.set("x-wcomms-human", who.login);

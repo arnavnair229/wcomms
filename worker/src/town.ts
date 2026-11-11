@@ -23,6 +23,7 @@ type Ov = {
   prefs?: Record<string, string>;
   contrib?: Array<{ task_id: number; human: string; n: number }>;
   crew_msgs?: Array<{ task_id: number; sender: string; last: number; n: number }>;
+  live?: Array<Record<string, any>>;
   tasks: Array<Record<string, any>>;
   who: Array<Record<string, any>>;
   activity?: Record<string, number>;
@@ -152,6 +153,7 @@ export async function buildTown(ov: Ov, repo: string, token?: string) {
       crew: crewOf(t),
     }; }),
     marks: ov.nudge_marks ?? [],
+    live: ov.live ?? [],
     who: ov.who.map((a) => ({ id: a.id, human: a.human, active: a.active, doing: a.doing, tasks: a.tasks, machine: a.machine, branch: a.branch })),
   };
 }

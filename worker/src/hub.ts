@@ -35,6 +35,9 @@ const SCHEMA = [
     updated_by TEXT NOT NULL, decided_by TEXT, note TEXT, updated_at INTEGER NOT NULL)`,
   ...LEARN_SCHEMA,
   `CREATE TABLE IF NOT EXISTS prefs (human TEXT PRIMARY KEY, color TEXT, updated_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS live (
+    id TEXT PRIMARY KEY, agent TEXT NOT NULL, human TEXT NOT NULL, cmd TEXT NOT NULL, cwd TEXT, task_id INTEGER,
+    started_at INTEGER NOT NULL, seen_at INTEGER NOT NULL, ended_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS nudges (
     id INTEGER PRIMARY KEY AUTOINCREMENT, from_agent TEXT NOT NULL, from_human TEXT NOT NULL,
     to_human TEXT NOT NULL, to_agent TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -210,6 +213,10 @@ export class Hub extends DurableObject<Env> {
       if (req.method === "POST" && assignMatch) { needAdmin(); return json(this.assignTask(human, Number(assignMatch[1]), args)); }
       if (route === "POST /runner/take") return json(this.runnerTake(human, args));
       if (route === "POST /prefs") { needAdmin(); return json(this.setPrefs(human, args)); }
+      if (route === "POST /live/start") return json(this.liveStart(this.agentFrom(human, args), args));
+      if (route === "POST /live/beat") return json(this.liveBeat(human, args));
+      if (route === "POST /live/end") return json(this.liveEnd(human, args));
+      if (route === "GET /live") return json(this.liveList());
       if (route === "POST /town/remember") {
         if (req.headers.get("x-wcomms-internal") !== "1") throw new HubError("internal route", 403);
         return json(this.rememberCommits(args));
@@ -791,6 +798,7 @@ export class Hub extends DurableObject<Env> {
     return {
       now: Date.now(), me: human, humans: this.humans(),
       who: this.who(), tasks: this.listTasks(), state: this.stateAll(),
+      live: this.liveList(),
       prefs: Object.fromEntries(this.rows<{ human: string; color: string }>("SELECT human, color FROM prefs").map((r) => [r.human, r.color])),
       crew_msgs: this.rows<{ task_id: number; sender: string; last: number; n: number }>(
         "SELECT task_id, sender, MAX(ts) AS last, COUNT(*) AS n FROM messages WHERE task_id IS NOT NULL AND ts > ? AND sender != 'wcomms' GROUP BY task_id, sender", Date.now() - DAY),
@@ -809,6 +817,44 @@ export class Hub extends DurableObject<Env> {
         memory: this.learn.memory(), memory_used: this.learn.memoryUsed(),
       },
     };
+  }
+
+  // ---------- live sessions (shared terminals) ----------
+
+  liveStart(a: Agent, args: Args) {
+    const id = String(args.id || "");
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(id)) throw new HubError("id must be 6-64 chars [A-Za-z0-9_-]");
+    const cmd = trunc(String(args.cmd || "shell"), 80);
+    const now = Date.now();
+    this.sql.exec(
+      `INSERT INTO live (id, agent, human, cmd, cwd, task_id, started_at, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET seen_at = excluded.seen_at, ended_at = NULL, cmd = excluded.cmd`,
+      id, a.id, a.human, cmd, args.cwd ? trunc(String(args.cwd), 200) : null, args.task_id ? Number(args.task_id) : null, now, now,
+    );
+    this.register(a, { status: "active", doing: args.doing === undefined ? `Sharing a live ${cmd} session` : String(args.doing) });
+    this.insertMessage({ sender: a.id, human: a.human, recipient: "all", topic: "live", kind: "note", body: `${a.id} is sharing a live ${cmd} session (watch it from the town)` });
+    return { id, agent: a.id };
+  }
+
+  liveBeat(human: string, args: Args) {
+    const id = String(args.id || "");
+    const row = this.row<{ agent: string }>("SELECT agent FROM live WHERE id = ? AND human = ?", id, human);
+    if (!row) throw new HubError("no such live session", 404);
+    this.agent(human, row.agent);
+    this.sql.exec("UPDATE live SET seen_at = ? WHERE id = ?", Date.now(), id);
+    return { ok: true };
+  }
+
+  liveEnd(human: string, args: Args) {
+    const id = String(args.id || "");
+    this.sql.exec("UPDATE live SET ended_at = ? WHERE id = ? AND human = ? AND ended_at IS NULL", Date.now(), id, human);
+    return { ok: true };
+  }
+
+  /** Sessions seen in the last two minutes. The daemon beats every 30 s. */
+  liveList() {
+    return this.rows<{ id: string; agent: string; human: string; cmd: string; cwd: string | null; task_id: number | null; started_at: number; seen_at: number }>(
+      "SELECT id, agent, human, cmd, cwd, task_id, started_at, seen_at FROM live WHERE ended_at IS NULL AND seen_at > ? ORDER BY started_at DESC", Date.now() - 120_000);
   }
 
   // ---------- town support ----------
