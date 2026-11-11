@@ -31,6 +31,7 @@ import termios
 import threading
 import time
 import tty
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -171,8 +172,13 @@ def main():
         reg = api("/api/live/start", {"id": sid, "cmd": os.path.basename(argv[0]), "cwd": os.getcwd(),
                                       "session": SESSION_ENV or sid, "machine": MACHINE})
         agent = reg.get("agent", agent)
+    except urllib.error.HTTPError as e:
+        try: why = json.loads(e.read().decode()).get("error", "")
+        except Exception: why = ""
+        print(f"wcomms share: the hub refused ({e.code}{': ' + why if why else ''}); running unshared", file=sys.stderr)
+        os.execvp(argv[0], argv)
     except Exception as e:
-        print(f"wcomms share: could not register with the hub ({e}); running unshared", file=sys.stderr)
+        print(f"wcomms share: could not reach the hub ({e}); running unshared", file=sys.stderr)
         os.execvp(argv[0], argv)
 
     ws_url = API.replace("https://", "wss://").replace("http://", "ws://") + f"/live/{sid}?role=host"

@@ -19,8 +19,11 @@ conf() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$HER
 URL="${WCOMMS_URL:-$(conf url)}"
 URL="${URL%/}"
 REPO="${WCOMMS_REPO:-$(conf repo)}"
-TOKEN="${WCOMMS_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+# Identity is your gh login. A GH_TOKEN/GITHUB_TOKEN in the environment is used only when gh isn't logged in,
+# because project shells often carry tokens for other purposes (deploy scripts, CI) that can't push to this repo.
+TOKEN="${WCOMMS_TOKEN:-}"
 [ -z "$TOKEN" ] && command -v gh >/dev/null && TOKEN="$(gh auth token 2>/dev/null || true)"
+[ -z "$TOKEN" ] && TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 API="$URL/r/$REPO"
 export WCOMMS_API="$API" WCOMMS_TOKEN="$TOKEN" WCOMMS_REPO="$REPO"
 
