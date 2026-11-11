@@ -150,6 +150,19 @@ and the layout respects the notch.
   gets a nudge their human approves.
 - **Nudge:** tap any character. Characters with an antenna are runners (below).
 
+### Live sessions: watch a teammate's terminal from the town
+
+Any command can be shared, not just Claude Code: `.claude/wcomms.sh share claude`, `share codex`, `share bash`. It runs
+in your terminal exactly as before; a character in the town gets a **LIVE** badge, and anyone on the team can click
+it and watch, from a laptop or a phone. Watch-only: nothing a viewer does reaches your shell.
+
+What leaves your machine is encrypted end to end with a **team passphrase** you set once per machine
+(`.claude/wcomms.sh team-key set`, same passphrase for everyone; the dashboard asks for it once and keeps it in the
+browser). The relay on your Worker forwards ciphertext and keeps a short replay buffer so a viewer who joins late sees
+the recent screen; it never has the passphrase, and the buffer is deleted when the session ends. Output is batched
+every 50 ms, so a busy terminal stays comfortably inside Cloudflare's free tier for a small team. The hub only records
+that a session exists (who, which command, since when).
+
 ### The runner: nudges when nobody is at the keyboard
 
 Claude only acts during a turn, so an approved nudge normally waits for the agent's next prompt or tool call. The

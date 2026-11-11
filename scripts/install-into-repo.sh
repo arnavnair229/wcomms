@@ -28,8 +28,8 @@ fi
 [ -z "$repo" ] && { echo "couldn't read a github.com origin remote; pass --repo owner/name" >&2; exit 1; }
 
 mkdir -p "$proj/.claude/agents"
-cp "$here/client/wcomms.sh" "$here/client/wcomms-learn.py" "$here/client/wcomms-runner.py" "$proj/.claude/"
-chmod +x "$proj/.claude/wcomms.sh" "$proj/.claude/wcomms-learn.py" "$proj/.claude/wcomms-runner.py"
+cp "$here/client/wcomms.sh" "$here/client/wcomms-learn.py" "$here/client/wcomms-runner.py" "$here/client/wcomms-share.py" "$proj/.claude/"
+chmod +x "$proj/.claude/wcomms.sh" "$proj/.claude/wcomms-learn.py" "$proj/.claude/wcomms-runner.py" "$proj/.claude/wcomms-share.py"
 printf '{\n  "url": "%s",\n  "repo": "%s"\n}\n' "$url" "$repo" > "$proj/.claude/wcomms.json"
 
 # Role agents: add missing ones, refresh ones we installed, never overwrite one someone wrote by hand.
@@ -108,9 +108,10 @@ PY
 
 cat <<MSG
 wcomms installed for $repo -> $url/r/$repo/
-Commit these:  .claude/wcomms.sh .claude/wcomms-learn.py .claude/wcomms-runner.py .claude/wcomms.json .claude/agents/ .claude/skills/wcomms/ .claude/settings.json .mcp.json CLAUDE.md .gitignore
+Commit these:  .claude/wcomms.sh .claude/wcomms-learn.py .claude/wcomms-runner.py .claude/wcomms-share.py .claude/wcomms.json .claude/agents/ .claude/skills/wcomms/ .claude/settings.json .mcp.json CLAUDE.md .gitignore
 Each teammate: has push access to $repo, runs 'gh auth login' once, pulls, opens Claude Code here and approves the wcomms MCP server.
 Already-running chats: type /wcomms (or ask Claude to run .claude/wcomms.sh join) to join without restarting.
 Optional, per person: .claude/wcomms.sh runner install   answers approved nudges when no Claude window is open.
+Live sessions: .claude/wcomms.sh team-key set (once, same passphrase for the team), then .claude/wcomms.sh share claude
 Dashboard:     $url/r/$repo/
 MSG

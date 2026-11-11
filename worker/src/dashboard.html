@@ -14,6 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js" defer></script>
 <style>
   /* Near-black + wine (default) or royal purple, with silver for primary actions and headings.
      Roles: --brand/--accent = identity and highlights, --ok = online/results, --attn = champagne "needs you", --bad = errors. */
@@ -341,6 +343,18 @@
   @keyframes rot { 0%, 25% { transform: rotate(0); } 55%, 80% { transform: rotate(-90deg); border-color: var(--accent); } 100% { transform: rotate(0); } }
   @media (prefers-reduced-motion: reduce) { .rot-phone { animation: none; transform: rotate(-90deg); } }
 
+  /* ---------- live terminal viewer ---------- */
+  .live-badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+  #liveView { position: fixed; inset: auto 16px 16px 16px; z-index: 40; height: min(62vh, 560px); background: #0b0a0a; border: 1px solid var(--line-2); border-radius: 12px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.8); display: flex; flex-direction: column; overflow: hidden; }
+  #liveView[hidden] { display: none; }
+  .live-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--card); font-size: 13px; }
+  .live-head .pulse { background: #ff5f57; animation: pulse 1.4s infinite; }
+  .live-head .meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #liveTerm { flex: 1; min-height: 0; padding: 6px 8px; }
+  #liveTerm .xterm { height: 100%; }
+  .live-ask { padding: 18px; color: var(--ink-2); }
+  @media (max-width: 860px) { #liveView { inset: auto 0 0 0; border-radius: 12px 12px 0 0; height: 70vh; } }
+
   #login { max-width: 420px; margin: 18vh auto; padding: 0 16px; text-align: center; }
   #login .mark { width: 40px; height: 40px; border-radius: 11px; font-size: 18px; margin: 0 auto 16px; }
   .err { color: var(--bad); }
@@ -363,6 +377,10 @@
   <p><a id="signin" href="/auth/login"><button type="button" class="btn primary">Continue with GitHub</button></a></p>
 </div>
 
+<div id="liveView" hidden>
+  <div class="live-head"><span class="pulse"></span><span class="live-badge">LIVE</span><span class="meta" id="liveMeta"></span><span class="meta" id="liveStatus" style="flex:none"></span><button type="button" class="btn" id="liveClose">Close</button></div>
+  <div id="liveTerm"></div>
+</div>
 <div id="app" class="shell" hidden>
   <aside>
     <div class="brand"><div class="mark">w</div><b>wcomms</b></div>
@@ -690,7 +708,7 @@ const VIEWS = {
     mount: () => `
       <section class="card town-card">
         <div class="town-head"><div><h2 style="margin:0">${esc(REPO)} <span class="meta" id="townSky" style="font-weight:500"></span></h2><div class="meta" id="townNote">Loading…</div><div class="swatches" id="townColors"></div></div>
-          <div class="legend"><span><i class="lg-ghost"></i>Being built</span><span><i style="background:#dcbb7e"></i>In review</span><span><i style="background:#94c6a2"></i>Done</span><span><i class="lg-lot"></i>Open lot</span><span><i style="background:#8a8286"></i>Paused</span><span><b class="lg-bubble">!</b>Nudge waiting</span><span><i class="lg-lit"></i>Lights on = in production</span><span><i class="lg-bridge"></i>Shared work</span></div></div>
+          <div class="legend"><span><i class="lg-ghost"></i>Being built</span><span><i style="background:#dcbb7e"></i>In review</span><span><i style="background:#94c6a2"></i>Done</span><span><i class="lg-lot"></i>Open lot</span><span><i style="background:#8a8286"></i>Paused</span><span><b class="lg-bubble">!</b>Nudge waiting</span><span><i class="lg-lit"></i>Lights on = in production</span><span><i class="lg-bridge"></i>Shared work</span><span><b class="live-badge" style="color:#ff5f57">LIVE</b>&nbsp;Watchable session</span></div></div>
         <div class="town" id="town">
           <svg id="townSvg" role="img" aria-label="Town of tasks: each tower is a task, height is commits"></svg>
           <div class="town-ctl"><button type="button" class="btn" data-cam="in" aria-label="Zoom in">+</button><button type="button" class="btn" data-cam="out" aria-label="Zoom out">−</button><button type="button" class="btn" data-cam="fit">Fit</button></div>
@@ -881,7 +899,11 @@ function critter(x, y, color, { agent, working, mark }) {
     vox(x, y, 0, "#2b2327", { s: 0.26, h: 0.42 }) + vox(x, y, 0.42, color, { s: 0.36, h: 0.48 }) +
     vox(x, y, 0.9, "#efd8c6", { s: 0.32, h: 0.34 }) + eyes + vox(x, y, 1.24, tint(color, -0.35), { s: 0.34, h: 0.1 }) +
     (/-runner$/.test(agent?.id || "") ? vox(x, y, 1.34, "#c9c3c6", { s: 0.06, h: 0.32 }) + `<g class="antenna">${vox(x, y, 1.66, "#f0cf8a", { s: 0.12, h: 0.12 })}</g>` : "") + arm +
-    (mark ? bubbleSvg(x, y, mark) : "") + `</g>`;
+    (mark ? bubbleSvg(x, y, mark) : "") + (liveFor(agent?.id) ? liveBadgeSvg(x, y) : "") + `</g>`;
+}
+function liveBadgeSvg(x, y) {
+  const [cx, cy] = IP(x + 0.5, y + 0.5, 1.9);
+  return `<g class="live-mark"><rect x="${cx - 14}" y="${cy - 9}" width="28" height="12" rx="3" fill="#ff5f57"/><text x="${cx}" y="${cy}" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" letter-spacing=".06em">LIVE</text></g>`;
 }
 
 // Town square: shared state as landmarks, skills as a library.
@@ -1105,6 +1127,7 @@ function animateTown() {
         .to(c, { y: -11, duration: 0.17, ease: "power2.out" }).to(c, { y: 0, duration: 0.22, ease: "bounce.out" });
     });
     G.to("#townSvg .bubble", { y: -3, duration: 0.7, repeat: -1, yoyo: true, ease: "sine.inOut" });
+    G.to("#townSvg .live-mark", { opacity: 0.55, duration: 0.8, repeat: -1, yoyo: true, ease: "sine.inOut" });
     G.to("#townSvg .beam", { opacity: 0.45, duration: 1.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
     G.to("#townSvg .antenna", { opacity: 0.3, duration: 0.5, repeat: -1, yoyo: true, ease: "steps(1)" });
     G.to("#townSvg .book.hot", { opacity: 0.6, duration: 1.1, repeat: -1, yoyo: true, ease: "sine.inOut", stagger: 0.2 });
@@ -1217,6 +1240,7 @@ function agentTipHtml(id) {
     ${held.map((t) => `<div class="meta">Holding <span class="mono">T${t.id}</span> ${esc(t.title)}</div>`).join("")}
     ${T.tasks.filter((t) => !held.includes(t) && (t.crew || []).some((c) => c.id === id)).slice(0, 5).map((t) => { const c = t.crew.find((x) => x.id === id); return `<div class="meta">On <span class="mono">T${t.id}</span> ${esc(t.title)} <span class="muted">(${c.via.map((v) => VIA[v] || v).join(", ")})</span></div>`; }).join("")}
     ${state ? `<div class="pill attn" style="margin-top:8px">${state}</div>` : ""}
+    ${liveFor(id) ? `<div class="actions"><button type="button" class="btn primary" data-watch="${esc(id)}"><span class="live-badge">LIVE</span>&nbsp; Watch ${esc(liveFor(id).cmd)} session</button></div>` : ""}
     ${pinned ? `<form class="nudgeForm" data-agent="${esc(id)}" style="margin-top:10px">
         <textarea class="field" id="nudgeBody" maxlength="1500" placeholder="Ask ${esc(a.human)}'s agent to run or check something. ${esc(a.human)} approves it before it reaches their Claude."></textarea>
         <div class="actions"><button class="btn primary">Send nudge</button><span class="meta" id="nudgeMsg"></span></div></form>`
@@ -1371,7 +1395,7 @@ async function loadTown(force) {
     const T = await api("/api/town");
     const sig = JSON.stringify([document.documentElement.dataset.palette, T.prefs, T.links, T.state.map((s) => [s.key, s.version]), T.skills.map((s) => [s.name, s.use_count, s.status]),
       T.tasks.map((t) => [t.id, t.status, t.commits, t.activity, t.owner, t.submitted_by, t.merge_state, t.shipped, t.contributors]),
-      T.who.filter((a) => a.active).map((a) => [a.id, a.tasks]), T.marks]);
+      T.who.filter((a) => a.active).map((a) => [a.id, a.tasks]), T.marks, (T.live || []).map((l) => l.id)]);
     S.town = T;
     renderColorPicker();
     const note = $("#townNote");
@@ -1386,6 +1410,90 @@ async function loadTown(force) {
     }
   } catch (err) { const n = $("#townNote"); if (n) n.innerHTML = `<span class="err">${esc(err.message)}</span>`; }
 }
+
+// ---------- live sessions: watch a teammate's terminal, decrypted in the browser ----------
+// Mirrors client/wcomms-share.py: PBKDF2-HMAC-SHA256(passphrase, "wcomms:"+repo) -> k_enc/k_mac via HMAC; keystream
+// HMAC-SHA256(k_enc, nonce||counter) in counter mode; tag HMAC-SHA256(k_mac, nonce||ciphertext). Verify, then decrypt.
+const LIVE = { keys: null, ws: null, term: null, id: null, dec: new TextDecoder(), pending: [] };
+const te = new TextEncoder();
+async function hmacKey(raw) { return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); }
+async function deriveKeys(passphrase) {
+  const base = await crypto.subtle.importKey("raw", te.encode(passphrase), "PBKDF2", false, ["deriveBits"]);
+  const master = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: te.encode("wcomms:" + REPO), iterations: 200000 }, base, 256);
+  const mk = await hmacKey(master);
+  const kEnc = await crypto.subtle.sign("HMAC", mk, te.encode("enc")), kMac = await crypto.subtle.sign("HMAC", mk, te.encode("mac"));
+  return { enc: await hmacKey(kEnc), mac: await hmacKey(kMac) };
+}
+async function openFrame(buf) {
+  const u = new Uint8Array(buf);
+  if (u[0] !== 1 || u.length < 45) throw new Error("bad frame");
+  const nonce = u.slice(1, 13), ct = u.slice(13, u.length - 32), tag = u.slice(u.length - 32);
+  const macIn = new Uint8Array(12 + ct.length); macIn.set(nonce); macIn.set(ct, 12);
+  const want = new Uint8Array(await crypto.subtle.sign("HMAC", LIVE.keys.mac, macIn));
+  let diff = 0; for (let i = 0; i < 32; i++) diff |= want[i] ^ tag[i];
+  if (diff) throw new Error("wrong team key");
+  const out = new Uint8Array(ct.length);
+  for (let i = 0; i < ct.length; i += 32) {
+    const ctr = new Uint8Array(16); ctr.set(nonce); new DataView(ctr.buffer).setUint32(12, i / 32);
+    const ks = new Uint8Array(await crypto.subtle.sign("HMAC", LIVE.keys.enc, ctr));
+    for (let j = 0; j < 32 && i + j < ct.length; j++) out[i + j] = ct[i + j] ^ ks[j];
+  }
+  return out;
+}
+
+function teamKeyStored() { return store.get("wcomms_teamkey:" + REPO, null); }
+
+async function watchLive(session) {
+  closeLive();
+  const view = $("#liveView");
+  view.hidden = false;
+  $("#liveMeta").textContent = `${session.agent} · ${session.cmd}${session.cwd ? " · " + session.cwd.split("/").slice(-2).join("/") : ""}`;
+  $("#liveStatus").textContent = "";
+  const pass = teamKeyStored();
+  if (!pass) {
+    $("#liveTerm").innerHTML = `<form class="live-ask" id="teamKeyForm"><div style="margin-bottom:8px">Live sessions are encrypted with your team's passphrase. Enter it once for this repo; it stays in this browser only.</div>
+      <div class="row"><input class="field" id="teamKeyIn" type="password" autocomplete="off" placeholder="Team passphrase" style="flex:1;max-width:360px"><button class="btn primary">Watch</button></div></form>`;
+    $("#teamKeyForm").addEventListener("submit", (e) => { e.preventDefault(); const v = $("#teamKeyIn").value; if (v.length >= 8) { store.set("wcomms_teamkey:" + REPO, v); watchLive(session); } });
+    $("#teamKeyIn").focus();
+    return;
+  }
+  if (!window.Terminal) { $("#liveTerm").innerHTML = `<div class="live-ask">Terminal library did not load.</div>`; return; }
+  LIVE.keys = await deriveKeys(pass);
+  $("#liveTerm").innerHTML = "";
+  LIVE.term = new window.Terminal({ convertEol: false, disableStdin: true, cursorBlink: false, fontSize: 13, theme: { background: "#0b0a0a" }, scrollback: 3000 });
+  LIVE.term.open($("#liveTerm"));
+  LIVE.id = session.id;
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${BASE}/live/${session.id}?role=viewer`);
+  ws.binaryType = "arraybuffer";
+  LIVE.ws = ws;
+  let chain = Promise.resolve();
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      try {
+        const m = JSON.parse(ev.data);
+        if (m.t === "size" && LIVE.term) LIVE.term.resize(Math.max(20, Math.min(300, m.cols)), Math.max(5, Math.min(100, m.rows)));
+        else if (m.t === "live") $("#liveStatus").textContent = "live";
+        else if (m.t === "host-gone") $("#liveStatus").textContent = "host disconnected";
+      } catch { /* ignore */ }
+      return;
+    }
+    chain = chain.then(async () => {
+      try { LIVE.term.write(await openFrame(ev.data)); }
+      catch (e) { $("#liveStatus").innerHTML = `<span class="err">${esc(e.message)}</span>`; if (/team key/.test(e.message)) { store.set("wcomms_teamkey:" + REPO, null); ws.close(); $("#liveTerm").innerHTML = `<div class="live-ask err">Wrong team passphrase. Close and try again.</div>`; } }
+    });
+  };
+  ws.onclose = () => { if (LIVE.ws === ws) $("#liveStatus").textContent = $("#liveStatus").textContent || "closed"; };
+  ws.onerror = () => { $("#liveStatus").textContent = "connection error"; };
+}
+function closeLive() {
+  if (LIVE.ws) { try { LIVE.ws.close(); } catch {} LIVE.ws = null; }
+  if (LIVE.term) { try { LIVE.term.dispose(); } catch {} LIVE.term = null; }
+  LIVE.id = null;
+  const v = $("#liveView"); if (v) v.hidden = true;
+}
+$("#liveClose").addEventListener("click", closeLive);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && LIVE.id) closeLive(); });
+const liveFor = (agentId) => (S.town?.live || []).find((l) => l.agent === agentId);
 
 // ---------- render loop ----------
 
@@ -1511,6 +1619,7 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if (b.dataset.goto !== undefined) { flyTo(Number(b.dataset.goto)); return; }
+  if (b.dataset.watch) { const l = liveFor(b.dataset.watch); if (l) watchLive(l); return; }
   if (b.dataset.nudgeagent) {
     const tip = $("#townTip"), at = tip ? { x: tip.offsetLeft - 18, y: tip.offsetTop + tip.offsetHeight + 14 } : { x: 40, y: 40 };
     $$("#townSvg .pinned").forEach((x) => x.classList.remove("pinned"));

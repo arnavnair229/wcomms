@@ -5,6 +5,8 @@
 #   chat:   wcomms.sh join | check | tool <name> ['{"json":"args"}']   (from inside a running Claude Code chat)
 #   CLI:    wcomms.sh who | tasks | feed [query] | inbox | post <body> [--kind K] [--to X] [--topic T]
 #   runner: wcomms.sh runner install | uninstall | status | run   (answer approved nudges when no chat is open)
+#   live:   wcomms.sh share <command...>   mirror a terminal to the town (watch-only, end-to-end encrypted)
+#           wcomms.sh team-key set | show   the shared passphrase that encrypts live sessions (never leaves machines)
 #   MCP:    wcomms.sh mcp-headers     (the .mcp.json headersHelper: prints your GitHub auth header)
 #
 # Config lives next to this script in wcomms.json ({"url": "<worker>", "repo": "owner/name"}), committed with the
@@ -20,7 +22,7 @@ REPO="${WCOMMS_REPO:-$(conf repo)}"
 TOKEN="${WCOMMS_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
 [ -z "$TOKEN" ] && command -v gh >/dev/null && TOKEN="$(gh auth token 2>/dev/null || true)"
 API="$URL/r/$REPO"
-export WCOMMS_API="$API" WCOMMS_TOKEN="$TOKEN"
+export WCOMMS_API="$API" WCOMMS_TOKEN="$TOKEN" WCOMMS_REPO="$REPO"
 
 if [ "${1:-}" = "mcp-headers" ]; then
   if [ -n "$TOKEN" ]; then printf '{"Authorization":"Bearer %s"}\n' "$TOKEN"; else echo '{}'; fi
@@ -31,6 +33,10 @@ REVIEW_EVERY="${WCOMMS_REVIEW_EVERY:-15}"      # turns between background learni
 LEARN="$HERE/wcomms-learn.py"
 STATE_DIR="${WCOMMS_STATE_DIR:-$HOME/.wcomms}"
 MACHINE="${WCOMMS_MACHINE:-$(hostname -s 2>/dev/null || hostname)}"
+# The team passphrase for live sessions lives only on each person's machine (and in their browser).
+TEAM_KEY_FILE="$STATE_DIR/team-key-$(printf '%s' "$REPO" | tr -c 'a-zA-Z0-9\n' '-' | tr 'A-Z' 'a-z')"
+[ -z "${WCOMMS_TEAM_KEY:-}" ] && [ -f "$TEAM_KEY_FILE" ] && WCOMMS_TEAM_KEY="$(cat "$TEAM_KEY_FILE")"
+export WCOMMS_TEAM_KEY="${WCOMMS_TEAM_KEY:-}"
 
 # Inside the background reviewer's own claude process every hook is off, so reviews never trigger reviews.
 if [ -z "$URL" ] || [ -z "$REPO" ] || [ -z "$TOKEN" ] || [ -n "${WCOMMS_REVIEW:-}" ]; then
@@ -237,6 +243,21 @@ case "$cmd" in
     ;;
   tool) tool "$@" ;;
   runner) runner_cmd "${1:-status}" ;;
+  share)
+    [ -n "$TOKEN" ] && WCOMMS_LOGIN="$(gh api user -q .login 2>/dev/null || true)"
+    WCOMMS_LOGIN="${WCOMMS_LOGIN:-}" exec python3 "$HERE/wcomms-share.py" "$@" ;;
+  team-key)
+    case "${1:-show}" in
+      set)
+        mkdir -p "$STATE_DIR"; chmod 700 "$STATE_DIR"
+        printf 'Team passphrase for %s (same for everyone on the team; it never leaves your machines): ' "$REPO" >&2
+        stty -echo; IFS= read -r k; stty echo; echo >&2
+        [ ${#k} -lt 8 ] && { echo "use at least 8 characters" >&2; exit 1; }
+        printf '%s' "$k" > "$TEAM_KEY_FILE" && chmod 600 "$TEAM_KEY_FILE" && echo "saved to $TEAM_KEY_FILE. Teammates run the same command with the same passphrase; the dashboard asks for it once." ;;
+      show) [ -f "$TEAM_KEY_FILE" ] && echo "team key is set ($TEAM_KEY_FILE)" || echo "no team key yet: .claude/wcomms.sh team-key set" ;;
+      clear) rm -f "$TEAM_KEY_FILE"; echo "removed" ;;
+      *) echo "usage: wcomms.sh team-key set|show|clear" >&2; exit 1 ;;
+    esac ;;
   who) api GET /api/text/who; echo ;;
   tasks) api GET "/api/text/tasks${1:+?status=$1}"; echo ;;
   inbox) if [ -n "$SESSION" ]; then tool inbox; else api GET /api/text/inbox; echo; fi ;;
