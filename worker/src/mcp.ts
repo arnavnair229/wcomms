@@ -14,6 +14,19 @@ const links = { type: "array", items: { type: "string" }, description: "Branch, 
 const taskId = { type: "integer", description: "Task number (T7 -> 7)" };
 const role = { type: "string", enum: ROLES };
 
+// MCP tool annotations (readOnly / destructive / idempotent / openWorld). Clients such as Claude Code use them to decide
+// which calls need a permission prompt, so reads are declared read-only and nothing here reaches outside the hub.
+const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+const SET = { ...WRITE, idempotentHint: true };
+const ANNOTATIONS: Record<string, typeof WRITE> = {
+  inbox: READ, who: READ, tasks: READ, state_get: READ, search: READ,
+  post: WRITE, claim: WRITE, create_task: WRITE, next: WRITE, plan: WRITE, propose_skill: WRITE, propose_memory: WRITE,
+  nudge: WRITE, reply_nudge: WRITE,
+  set_status: SET, state_set: SET,
+  update_task: { ...WRITE, destructiveHint: true },   // can drop a task or send it back
+};
+
 const TOOLS = [
   {
     name: "post",
@@ -248,7 +261,7 @@ function respond(m: Rpc, hub: Hub, human: string) {
     case "ping":
       return ok({});
     case "tools/list":
-      return ok({ tools: TOOLS });
+      return ok({ tools: TOOLS.map((t) => ({ ...t, annotations: ANNOTATIONS[t.name] ?? WRITE })) });
     case "tools/call": {
       try {
         const out = callTool(hub, human, m.params?.name, m.params?.arguments ?? {});
