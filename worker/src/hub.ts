@@ -23,6 +23,7 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS messages_recipient ON messages (recipient, id)`,
   `CREATE INDEX IF NOT EXISTS messages_ts ON messages (ts)`,
   `CREATE INDEX IF NOT EXISTS messages_task ON messages (task_id)`,
+  `CREATE INDEX IF NOT EXISTS messages_kind ON messages (kind, id)`,
   `CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, detail TEXT, owner TEXT, owner_human TEXT,
     status TEXT NOT NULL, branch TEXT, result TEXT, grade TEXT, links TEXT,
@@ -126,15 +127,32 @@ function normRole(raw: unknown): string | null {
   return r;
 }
 
+/** Prefix for writes that nobody watching the board needs to hear about (heartbeats); they do not bump the change counter. */
+const QUIET = "/* quiet */ ";
+
 export class Hub extends DurableObject<Env> {
   private sql: SqlStorage;
   private lastSweep = 0;
   private lastCurate = 0;
+  /** Bumped by every write a reader could notice. With the boot id it forms the overview's ETag, so a dashboard
+   *  polling an unchanged hub gets a 304 that reads zero rows. The counter restarts when the object is evicted,
+   *  which only costs the next poll one full read. */
+  private rev = 0;
+  private readonly boot = Math.random().toString(36).slice(2, 8);
   learn: Learning;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.sql = ctx.storage.sql;
+    const raw = ctx.storage.sql;
+    const hub = this;
+    this.sql = {
+      exec<T extends Record<string, SqlStorageValue>>(q: string, ...b: Bind[]) {
+        const c = raw.exec<T>(q, ...b);
+        if (!/^\s*(SELECT|PRAGMA|CREATE|ALTER)\b/i.test(q) && !q.startsWith(QUIET)) hub.rev++;
+        return c;
+      },
+      get databaseSize() { return raw.databaseSize; },
+    } as unknown as SqlStorage;
     for (const stmt of SCHEMA) this.sql.exec(stmt);
     for (const [table, col, type] of COLUMNS) {
       const has = this.rows<{ name: string }>(`PRAGMA table_info(${table})`).some((c) => c.name === col);
@@ -195,7 +213,13 @@ export class Hub extends DurableObject<Env> {
       if (route === "POST /hook/stop") return text(this.hookStop(human, args));
       if (route === "POST /hook/end") return json(this.hookStatus(human, args, "offline"));
 
-      if (route === "GET /overview") return json({ ...this.overview(human), admin });
+      if (route === "GET /overview") {
+        const etag = `"${this.boot}-${this.rev}"`;
+        if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag } });
+        const res = json({ ...this.overview(human), admin });
+        res.headers.set("etag", etag);
+        return res;
+      }
 
       // Roles and orchestration.
       if (route === "POST /tasks/next") {
@@ -303,7 +327,8 @@ export class Hub extends DurableObject<Env> {
     const now = Date.now();
     const existing = this.row<Agent>("SELECT * FROM agents WHERE id = ?", id);
     if (existing) {
-      this.sql.exec("UPDATE agents SET heartbeat_at = ?, online = 1 WHERE id = ?", now, id);
+      this.sql.exec(QUIET + "UPDATE agents SET heartbeat_at = ?, online = 1 WHERE id = ?", now, id);
+      if (!existing.online) this.rev++;
       return { ...existing, heartbeat_at: now, online: 1 };
     }
     this.sql.exec(
@@ -420,7 +445,7 @@ export class Hub extends DurableObject<Env> {
       .map(decodeLinks);
     const total = this.row<{ n: number }>(`SELECT COUNT(*) AS n FROM messages WHERE ${where}`, a.cursor, a.id, ...rec)!.n;
     if (msgs.length && !truthy(args.peek)) {
-      this.sql.exec("UPDATE agents SET cursor = ? WHERE id = ?", msgs[msgs.length - 1].id, a.id);
+      this.sql.exec(QUIET + "UPDATE agents SET cursor = ? WHERE id = ?", msgs[msgs.length - 1].id, a.id);
     }
     return { agent: a.id, messages: msgs, remaining: total - msgs.length };
   }
@@ -783,8 +808,11 @@ export class Hub extends DurableObject<Env> {
         body: `T${t.id} claim released: ${t.owner}'s session ${t.online === 0 ? "ended" : "has been silent"} for ${ago(t.hb, now)} (${t.title}). It is ${t.status === "review" ? "back in the review queue" : "paused until someone claims it again"}.`,
       });
     }
-    // Sessions silent past the hard cap are marked offline; ended sessions already are.
-    this.sql.exec("UPDATE agents SET online = 0, status = 'offline' WHERE online = 1 AND heartbeat_at < ?", hard);
+    // Sessions silent past the hard cap are marked offline; ended sessions already are. Checked before writing so a
+    // quiet minute does not count as a change.
+    if (this.row("SELECT id FROM agents WHERE online = 1 AND heartbeat_at < ? LIMIT 1", hard)) {
+      this.sql.exec("UPDATE agents SET online = 0, status = 'offline' WHERE online = 1 AND heartbeat_at < ?", hard);
+    }
     this.requeueNudges(now);
     if (now - this.lastCurate > DAY) {
       this.lastCurate = now;
@@ -793,19 +821,33 @@ export class Hub extends DurableObject<Env> {
   }
 
   overview(human: string) {
-    const week = Date.now() - 7 * DAY;
-    const byKind = (k: string) => this.rows<Message>("SELECT * FROM messages WHERE kind = ? AND ts > ? ORDER BY id DESC LIMIT 50", k, week).map(decodeLinks);
+    const now = Date.now();
+    const week = now - 7 * DAY;
+    // One pass over task-linked messages feeds three views (per-task activity, per-human contribution, crew active
+    // today); one pass over the week feeds the three "this week" lists. Rows read are billed, so scans are rationed.
+    const perTask = this.rows<{ task_id: number; sender: string; human: string; n: number; today: number; last: number }>(
+      `SELECT task_id, sender, human, COUNT(*) AS n, SUM(ts > ?) AS today, MAX(ts) AS last FROM messages
+       WHERE task_id IS NOT NULL GROUP BY task_id, sender, human`, now - DAY);
+    const activity: Record<number, number> = {};
+    const contrib = new Map<string, { task_id: number; human: string; n: number }>();
+    const crew_msgs: { task_id: number; sender: string; last: number; n: number }[] = [];
+    for (const r of perTask) {
+      activity[r.task_id] = (activity[r.task_id] ?? 0) + r.n;
+      if (r.human !== "wcomms") {
+        const c = contrib.get(`${r.task_id}/${r.human}`) ?? { task_id: r.task_id, human: r.human, n: 0 };
+        c.n += r.n; contrib.set(`${r.task_id}/${r.human}`, c);
+      }
+      if (r.sender !== "wcomms" && r.today > 0) crew_msgs.push({ task_id: r.task_id, sender: r.sender, last: r.last, n: r.today });
+    }
+    const weekMsgs = this.rows<Message>(
+      "SELECT * FROM messages WHERE kind IN ('result', 'decision', 'question') AND ts > ? ORDER BY id DESC LIMIT 150", week).map(decodeLinks);
+    const byKind = (k: string) => weekMsgs.filter((m) => m.kind === k).slice(0, 50);
     return {
-      now: Date.now(), me: human, humans: this.humans(),
+      now, me: human, humans: this.humans(),
       who: this.who(), tasks: this.listTasks(), state: this.stateAll(),
       live: this.liveList(),
       prefs: Object.fromEntries(this.rows<{ human: string; color: string }>("SELECT human, color FROM prefs").map((r) => [r.human, r.color])),
-      crew_msgs: this.rows<{ task_id: number; sender: string; last: number; n: number }>(
-        "SELECT task_id, sender, MAX(ts) AS last, COUNT(*) AS n FROM messages WHERE task_id IS NOT NULL AND ts > ? AND sender != 'wcomms' GROUP BY task_id, sender", Date.now() - DAY),
-      contrib: this.rows<{ task_id: number; human: string; n: number }>(
-        "SELECT task_id, human, COUNT(*) AS n FROM messages WHERE task_id IS NOT NULL AND human != 'wcomms' GROUP BY task_id, human"),
-      activity: Object.fromEntries(this.rows<{ task_id: number; n: number }>(
-        "SELECT task_id, COUNT(*) AS n FROM messages WHERE task_id IS NOT NULL GROUP BY task_id").map((r) => [r.task_id, r.n])),
+      crew_msgs, contrib: [...contrib.values()], activity,
       messages: this.search({ limit: 150 }),
       week: { results: byKind("result"), decisions: byKind("decision"), questions: byKind("question") },
       nudges: this.rows<Nudge>("SELECT * FROM nudges WHERE (to_human = ? OR from_human = ?) AND created_at > ? ORDER BY id DESC LIMIT 50", human, human, Date.now() - 7 * DAY),
@@ -841,7 +883,7 @@ export class Hub extends DurableObject<Env> {
     const row = this.row<{ agent: string }>("SELECT agent FROM live WHERE id = ? AND human = ?", id, human);
     if (!row) throw new HubError("no such live session", 404);
     this.agent(human, row.agent);
-    this.sql.exec("UPDATE live SET seen_at = ? WHERE id = ?", Date.now(), id);
+    this.sql.exec(QUIET + "UPDATE live SET seen_at = ? WHERE id = ?", Date.now(), id);
     return { ok: true };
   }
 
