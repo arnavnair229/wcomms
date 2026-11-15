@@ -42,7 +42,7 @@ def api(method, path, body=None, timeout=4):
         URL + path,
         method=method,
         data=json.dumps(body).encode() if body is not None else None,
-        headers={"Authorization": f"Bearer {TOKEN}", "content-type": "application/json"},
+        headers={"Authorization": f"Bearer {TOKEN}", "content-type": "application/json", "User-Agent": "wcomms/1.0"},
     )
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode()

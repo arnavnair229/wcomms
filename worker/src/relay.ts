@@ -6,6 +6,7 @@ import type { Env } from "./index";
 
 const REPLAY_BYTES = 96 * 1024;
 const MAX_FRAME = 64 * 1024;
+const PERSIST_MS = 3000;
 
 type Attach = { role: "host" | "viewer"; who: string };
 
@@ -20,14 +21,21 @@ export class Relay extends DurableObject<Env> {
   private async load() {
     if (this.loaded) return;
     this.loaded = true;
-    const size = await this.ctx.storage.get<{ cols: number; rows: number }>("size");
-    if (size) { this.cols = size.cols; this.rows = size.rows; }
-    const replay = await this.ctx.storage.get<ArrayBuffer[]>("replay");
-    if (replay) { this.replay = replay; this.replaySize = replay.reduce((n, b) => n + b.byteLength, 0); }
+    const saved = await this.ctx.storage.get<{ cols: number; rows: number; replay: ArrayBuffer[] }>("state");
+    if (saved) {
+      this.cols = saved.cols; this.rows = saved.rows;
+      this.replay = saved.replay; this.replaySize = saved.replay.reduce((n, b) => n + b.byteLength, 0);
+    }
   }
+  /** Storage writes are metered and a busy terminal sends twenty frames a second, so writes are coalesced into one
+   *  every few seconds while frames flow. An eviction in between loses a few seconds of replay, nothing more. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persist() {
-    void this.ctx.storage.put("size", { cols: this.cols, rows: this.rows });
-    void this.ctx.storage.put("replay", this.replay);
+    if (this.persistTimer) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      void this.ctx.storage.put("state", { cols: this.cols, rows: this.rows, replay: this.replay });
+    }, PERSIST_MS);
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -89,6 +97,7 @@ export class Relay extends DurableObject<Env> {
       this.broadcast(JSON.stringify({ t: "host-gone" }), "viewer");
       // The session is over: drop the replay so nothing lingers in storage.
       this.replay = []; this.replaySize = 0; this.cols = 0; this.rows = 0;
+      if (this.persistTimer) { clearTimeout(this.persistTimer); this.persistTimer = null; }
       void this.ctx.storage.deleteAll();
     }
     else this.broadcast(JSON.stringify({ t: "viewers", n: this.viewerCount() - 1 }), "host");
