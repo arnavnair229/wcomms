@@ -456,6 +456,20 @@ async function api(path, opts = {}) {
   return j;
 }
 
+// Conditional GET for the two polls. The hub answers 304 (reading no rows at all) while nothing has changed since the
+// tag we hold; this resolves to null then, else to the body with its new tag.
+async function poll(path, tag) {
+  const headers = { "x-requested-with": "wcomms" };
+  if (tag) headers["if-none-match"] = tag;
+  const r = await fetch(BASE + path, { credentials: "same-origin", headers });
+  if (r.status === 304) return null;
+  if (r.status === 401) { showLogin(); throw new Error("Signed out"); }
+  const j = await r.json();
+  if (r.status === 403 && !S.data) { showLogin(j.error); throw new Error(j.error); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return { data: j, etag: r.headers.get("etag") };
+}
+
 function showLogin(err) {
   $("#app").hidden = true; $("#login").hidden = false; clearInterval(S.timer);
   $("#repoName").textContent = REPO;
@@ -1392,7 +1406,13 @@ async function loadTown(force) {
   if (!force && Date.now() - (S.townAt || 0) < 30000) return;
   S.townAt = Date.now();
   try {
-    const T = await api("/api/town");
+    // While the hub is unchanged the poll is a free 304. The tag is dropped every five minutes so a full rebuild
+    // picks up new commits on GitHub even when nobody has touched the board.
+    const rebuild = force || Date.now() - (S.townBuiltAt || 0) > 300000;
+    const res = await poll("/api/town", rebuild ? null : S.townEtag);
+    if (!res) return;
+    S.townEtag = res.etag; S.townBuiltAt = Date.now();
+    const T = res.data;
     const sig = JSON.stringify([document.documentElement.dataset.palette, T.prefs, T.links, T.state.map((s) => [s.key, s.version]), T.skills.map((s) => [s.name, s.use_count, s.status]),
       T.tasks.map((t) => [t.id, t.status, t.commits, t.activity, t.owner, t.submitted_by, t.merge_state, t.shipped, t.contributors]),
       T.who.filter((a) => a.active).map((a) => [a.id, a.tasks]), T.marks, (T.live || []).map((l) => l.id)]);
@@ -1540,12 +1560,17 @@ function settleSoon() {
 }
 
 async function refresh(force) {
+  if (document.hidden && !force) return;   // nobody is looking; the tab refreshes the moment it is visible again
   try {
-    const d = await api("/api/overview");
-    const sig = JSON.stringify([d.messages[0]?.id, d.tasks.map((t) => [t.id, t.status, t.owner, t.updated_at]), d.who.map((a) => [a.id, a.active, a.doing, a.tasks]),
-      d.learning.proposals.map((p) => [p.id, p.status]), d.learning.memory.length, d.learning.skills.map((s) => [s.name, s.version, s.status, s.use_count]), d.state.map((s) => s.version)]);
-    S.data = d;
-    if (force || sig !== S.sig) { S.sig = sig; render(); }
+    const res = await poll("/api/overview", force ? null : S.etag);
+    if (res) {
+      const d = res.data;
+      S.etag = res.etag;
+      const sig = JSON.stringify([d.messages[0]?.id, d.tasks.map((t) => [t.id, t.status, t.owner, t.updated_at]), d.who.map((a) => [a.id, a.active, a.doing, a.tasks]),
+        d.learning.proposals.map((p) => [p.id, p.status]), d.learning.memory.length, d.learning.skills.map((s) => [s.name, s.version, s.status, s.use_count]), d.state.map((s) => s.version)]);
+      S.data = d;
+      if (force || sig !== S.sig) { S.sig = sig; render(); }
+    }
     $("#updated").textContent = "Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   } catch (e) { $("#updated").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
@@ -1731,7 +1756,8 @@ window.addEventListener("DOMContentLoaded", () => {
   setView(S.view);
   refresh(true);
   S.timer = setInterval(refresh, 10000);
-  setInterval(() => { if (S.data) render(); }, 60000);   // keep "5m ago" labels honest
+  setInterval(() => { if (S.data && !document.hidden) render(); }, 60000);   // keep "5m ago" labels honest
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.townAt = 0; refresh(true); } });
 });
 </script>
 </body>

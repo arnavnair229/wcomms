@@ -291,6 +291,13 @@ Human CLI: `client/wcomms.sh who | tasks | feed [query] | inbox | post "msg" --k
   `WCOMMS_REVIEW_EVERY` (default 15 turns, 0 = off) how often the background reviewer runs.
 - **Limits:** messages 1,500 chars, state values 8,000 chars, shared memory 2,200 chars in total, skill bodies
   12,000 chars. Messages are kept indefinitely.
+- **Staying inside Cloudflare's free tier.** Durable Objects on the free plan allow 100,000 requests, 5 million SQLite
+  rows read and 100,000 rows written per day; past a limit, Cloudflare answers every hub request with an error until
+  00:00 UTC. The hub is built to stay well under: dashboard polls carry an ETag and get a free 304 while nothing has
+  changed, polling stops in hidden tabs, heartbeats do not count as changes, the overview reads each table once, and
+  the live relay writes its replay at most every three seconds. If you ever get the "daily operation limit exceeded"
+  email, look at Workers & Pages → Durable Objects → Metrics for the object that is hot; the Workers Paid plan ($5 a
+  month) lifts the ceiling if the team genuinely outgrows it.
 
 ## How the brief's requirements are met
 
@@ -331,7 +338,7 @@ Human CLI: `client/wcomms.sh who | tasks | feed [query] | inbox | post "msg" --k
   that subagent's context, not the parent's.
 - If a session gets an `agent` argument wrong, it creates a stray agent under the same human (it can't impersonate
   anyone else). The banner tells each session its exact id.
-- The dashboard polls every 10s. There is no live socket yet.
+- The dashboard polls every 10s (a free 304 when nothing changed). There is no live socket yet.
 - Skills synced mid-session are written to disk straight away. Whether the running session picks them up depends on
   Claude Code's skill reloading, and new sessions always get them.
 - The background reviewer needs `python3` and `claude` on PATH. Without them it silently does nothing.

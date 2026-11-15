@@ -110,8 +110,13 @@ export default {
     inner.pathname = rest;
     const hub = env.HUB.get(env.HUB.idFromName(repo));
     if (rest === "/api/town" && req.method === "GET") {
+      // The town is a function of the hub's overview plus GitHub. If the hub has not changed since the browser's
+      // last look (If-None-Match), nothing is rebuilt: no rows read, no GitHub calls. The browser drops its tag
+      // every few minutes so new commits still show up.
       inner.pathname = "/api/overview";
-      const ov = await (await hub.fetch(new Request(inner.toString(), { headers }))).json();
+      const ovRes = await hub.fetch(new Request(inner.toString(), { headers }));
+      if (ovRes.status === 304) return new Response(null, { status: 304, headers: { etag: ovRes.headers.get("etag") ?? "", "cache-control": "no-store" } });
+      const ov = await ovRes.json();
       const town = await buildTown(ov as Parameters<typeof buildTown>[0], repo, who.token);
       if (Object.keys(town.remember).length) {
         inner.pathname = "/api/town/remember";
@@ -121,6 +126,8 @@ export default {
       }
       const out = json(town);
       out.headers.set("cache-control", "no-store");
+      const tag = ovRes.headers.get("etag");
+      if (tag) out.headers.set("etag", tag);
       return out;
     }
     const res = await hub.fetch(new Request(inner.toString(), { method: req.method, headers, body: req.body }));
