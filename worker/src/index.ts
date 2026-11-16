@@ -115,7 +115,9 @@ export default {
       // every few minutes so new commits still show up.
       inner.pathname = "/api/overview";
       const ovRes = await hub.fetch(new Request(inner.toString(), { headers }));
-      if (ovRes.status === 304) return new Response(null, { status: 304, headers: { etag: ovRes.headers.get("etag") ?? "", "cache-control": "no-store" } });
+      if (ovRes.status === 304) {
+        return new Response(null, { status: 304, headers: { etag: ovRes.headers.get("etag") ?? "", "x-wcomms-usage": ovRes.headers.get("x-wcomms-usage") ?? "", "cache-control": "no-store" } });
+      }
       const ov = await ovRes.json();
       const town = await buildTown(ov as Parameters<typeof buildTown>[0], repo, who.token);
       if (Object.keys(town.remember).length) {

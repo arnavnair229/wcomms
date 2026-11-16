@@ -6,35 +6,55 @@ import type { Env } from "./index";
 
 const REPLAY_BYTES = 96 * 1024;
 const MAX_FRAME = 64 * 1024;
-const PERSIST_MS = 3000;
+const PERSIST_MS = 5000;
 
 type Attach = { role: "host" | "viewer"; who: string };
 
 export class Relay extends DurableObject<Env> {
+  private sql: SqlStorage;
   private replay: ArrayBuffer[] = [];
   private replaySize = 0;
   private cols = 0;
   private rows = 0;
   private loaded = false;
 
-  /** The object can be put to sleep between messages; size and replay live in storage so a wake-up loses nothing. */
-  private async load() {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.sql = ctx.storage.sql;
+    this.sql.exec("CREATE TABLE IF NOT EXISTS replay (id INTEGER PRIMARY KEY, cols INTEGER NOT NULL, rows INTEGER NOT NULL, data BLOB NOT NULL)");
+  }
+
+  /** The object can be put to sleep between messages; size and replay live in one SQL row so a wake-up loses nothing.
+   *  Frames are stored back to back, each behind a 4-byte length. */
+  private load() {
     if (this.loaded) return;
     this.loaded = true;
-    const saved = await this.ctx.storage.get<{ cols: number; rows: number; replay: ArrayBuffer[] }>("state");
-    if (saved) {
-      this.cols = saved.cols; this.rows = saved.rows;
-      this.replay = saved.replay; this.replaySize = saved.replay.reduce((n, b) => n + b.byteLength, 0);
+    const r = this.sql.exec<{ cols: number; rows: number; data: ArrayBuffer }>("SELECT cols, rows, data FROM replay WHERE id = 1").toArray()[0];
+    if (!r) return;
+    this.cols = r.cols; this.rows = r.rows;
+    const v = new DataView(r.data);
+    for (let o = 0; o + 4 <= r.data.byteLength;) {
+      const n = v.getUint32(o); o += 4;
+      this.replay.push(r.data.slice(o, o + n)); o += n;
     }
+    this.replaySize = this.replay.reduce((n, b) => n + b.byteLength, 0);
   }
-  /** Storage writes are metered and a busy terminal sends twenty frames a second, so writes are coalesced into one
-   *  every few seconds while frames flow. An eviction in between loses a few seconds of replay, nothing more. */
+  /** Rows written are metered (100k a day on the free tier) and a busy terminal sends twenty frames a second, so the
+   *  replay is written as one row at most every few seconds while frames flow. An eviction in between loses a few
+   *  seconds of replay, nothing more. The timer is short enough not to matter for hibernation. */
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persist() {
     if (this.persistTimer) return;
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      void this.ctx.storage.put("state", { cols: this.cols, rows: this.rows, replay: this.replay });
+      const buf = new Uint8Array(this.replaySize + 4 * this.replay.length);
+      const v = new DataView(buf.buffer);
+      let o = 0;
+      for (const f of this.replay) { v.setUint32(o, f.byteLength); o += 4; buf.set(new Uint8Array(f), o); o += f.byteLength; }
+      this.sql.exec(
+        "INSERT INTO replay (id, cols, rows, data) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET cols = excluded.cols, rows = excluded.rows, data = excluded.data",
+        this.cols, this.rows, buf.buffer,
+      );
     }, PERSIST_MS);
   }
 
@@ -98,7 +118,7 @@ export class Relay extends DurableObject<Env> {
       // The session is over: drop the replay so nothing lingers in storage.
       this.replay = []; this.replaySize = 0; this.cols = 0; this.rows = 0;
       if (this.persistTimer) { clearTimeout(this.persistTimer); this.persistTimer = null; }
-      void this.ctx.storage.deleteAll();
+      this.sql.exec("DELETE FROM replay");
     }
     else this.broadcast(JSON.stringify({ t: "viewers", n: this.viewerCount() - 1 }), "host");
   }

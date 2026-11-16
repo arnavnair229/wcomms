@@ -462,12 +462,28 @@ async function poll(path, tag) {
   const headers = { "x-requested-with": "wcomms" };
   if (tag) headers["if-none-match"] = tag;
   const r = await fetch(BASE + path, { credentials: "same-origin", headers });
-  if (r.status === 304) return null;
+  let usage = null;
+  try { usage = JSON.parse(r.headers.get("x-wcomms-usage") || "null"); } catch { /* absent */ }
+  if (r.status === 304) return { unchanged: true, usage };
   if (r.status === 401) { showLogin(); throw new Error("Signed out"); }
   const j = await r.json();
   if (r.status === 403 && !S.data) { showLogin(j.error); throw new Error(j.error); }
   if (!r.ok) throw new Error(j.error || r.statusText);
-  return { data: j, etag: r.headers.get("etag") };
+  return { data: j, etag: r.headers.get("etag"), usage };
+}
+
+// Cloudflare's free tier caps a Durable Object at 100k requests, 5M rows read and 100k rows written per UTC day; the
+// hub meters itself so the headline shows how much of today's allowance this repo has used.
+const FREE_TIER = { requests: 100000, rows_read: 5000000, rows_written: 100000 };
+function budgetText(u) {
+  if (!u) return "";
+  const pct = Math.round(100 * Math.max(u.requests / FREE_TIER.requests, u.rows_read / FREE_TIER.rows_read, u.rows_written / FREE_TIER.rows_written));
+  return ` · free tier ${pct}% used today`;
+}
+function budgetTitle(u) {
+  if (!u) return "";
+  const n = (x) => x.toLocaleString();
+  return `Since 00:00 UTC, this hub: ${n(u.rows_read)} of ${n(FREE_TIER.rows_read)} rows read · ${n(u.rows_written)} of ${n(FREE_TIER.rows_written)} rows written · ${n(u.requests)} of ${n(FREE_TIER.requests)} requests. Past a limit Cloudflare refuses hub requests until the reset.`;
 }
 
 function showLogin(err) {
@@ -1410,7 +1426,7 @@ async function loadTown(force) {
     // picks up new commits on GitHub even when nobody has touched the board.
     const rebuild = force || Date.now() - (S.townBuiltAt || 0) > 300000;
     const res = await poll("/api/town", rebuild ? null : S.townEtag);
-    if (!res) return;
+    if (res.unchanged) return;
     S.townEtag = res.etag; S.townBuiltAt = Date.now();
     const T = res.data;
     const sig = JSON.stringify([document.documentElement.dataset.palette, T.prefs, T.links, T.state.map((s) => [s.key, s.version]), T.skills.map((s) => [s.name, s.use_count, s.status]),
@@ -1563,7 +1579,7 @@ async function refresh(force) {
   if (document.hidden && !force) return;   // nobody is looking; the tab refreshes the moment it is visible again
   try {
     const res = await poll("/api/overview", force ? null : S.etag);
-    if (res) {
+    if (!res.unchanged) {
       const d = res.data;
       S.etag = res.etag;
       const sig = JSON.stringify([d.messages[0]?.id, d.tasks.map((t) => [t.id, t.status, t.owner, t.updated_at]), d.who.map((a) => [a.id, a.active, a.doing, a.tasks]),
@@ -1571,8 +1587,22 @@ async function refresh(force) {
       S.data = d;
       if (force || sig !== S.sig) { S.sig = sig; render(); }
     }
-    $("#updated").textContent = "Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (res.usage) S.usage = res.usage;
+    $("#updated").textContent = "Live · updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + budgetText(S.usage);
+    $("#updated").title = budgetTitle(S.usage);
   } catch (e) { $("#updated").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+// Every 10 s while someone is working; every five minutes when the hub is idle. A Durable Object stays in memory, and
+// metered, for about two minutes after any request, so frequent polls of an empty hub would keep it awake all day.
+function pollDelay() {
+  const d = S.data;
+  const busy = !d || d.who.some((a) => a.active) || (d.live || []).length;
+  return busy ? 10000 : 300000;
+}
+function schedulePoll() {
+  clearTimeout(S.timer);
+  S.timer = setTimeout(async () => { await refresh(); schedulePoll(); }, pollDelay());
 }
 
 // ---------- interactions ----------
@@ -1754,10 +1784,9 @@ window.addEventListener("DOMContentLoaded", () => {
   $("#login").hidden = true; $("#app").hidden = false;
   S.view = location.hash.slice(1) || "town";
   setView(S.view);
-  refresh(true);
-  S.timer = setInterval(refresh, 10000);
+  refresh(true).then(schedulePoll);
   setInterval(() => { if (S.data && !document.hidden) render(); }, 60000);   // keep "5m ago" labels honest
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.townAt = 0; refresh(true); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { S.townAt = 0; refresh(true).then(schedulePoll); } });
 });
 </script>
 </body>
