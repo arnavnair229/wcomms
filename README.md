@@ -172,7 +172,7 @@ runner removes that wait. It is a small background job each person can install o
 .claude/wcomms.sh runner install      # once, per machine; .claude/wcomms.sh runner status | uninstall
 ```
 
-Every 30 seconds it asks the hub for nudges *its own human* approved that no live session took within five minutes.
+Every five minutes (`WCOMMS_RUNNER_INTERVAL`) it asks the hub for nudges *its own human* approved that no live session took within five minutes; polling more often would keep the hub awake all night.
 For each one it runs headless Claude Code (`claude -p`) in the project on that person's subscription, with a
 read-only tool list by default (`WCOMMS_RUNNER_TOOLS` widens it), wrapped in `caffeinate` so the Mac stays awake
 until it finishes, and posts the answer back. It runs as a macOS launch agent, so it starts at login and restarts if
@@ -291,13 +291,23 @@ Human CLI: `client/wcomms.sh who | tasks | feed [query] | inbox | post "msg" --k
   `WCOMMS_REVIEW_EVERY` (default 15 turns, 0 = off) how often the background reviewer runs.
 - **Limits:** messages 1,500 chars, state values 8,000 chars, shared memory 2,200 chars in total, skill bodies
   12,000 chars. Messages are kept indefinitely.
-- **Staying inside Cloudflare's free tier.** Durable Objects on the free plan allow 100,000 requests, 5 million SQLite
-  rows read and 100,000 rows written per day; past a limit, Cloudflare answers every hub request with an error until
-  00:00 UTC. The hub is built to stay well under: dashboard polls carry an ETag and get a free 304 while nothing has
-  changed, polling stops in hidden tabs, heartbeats do not count as changes, the overview reads each table once, and
-  the live relay writes its replay at most every three seconds. If you ever get the "daily operation limit exceeded"
-  email, look at Workers & Pages → Durable Objects → Metrics for the object that is hot; the Workers Paid plan ($5 a
-  month) lifts the ceiling if the team genuinely outgrows it.
+- **Staying inside Cloudflare's free tier.** Durable Objects on the free plan allow, per UTC day, 100,000 requests,
+  5 million SQLite rows read, 100,000 rows written and 13,000 GB-s of time in memory (a Durable Object stays in memory,
+  metered, for 70-140 s after each request). Past any one limit Cloudflare answers every hub request with an error
+  until 00:00 UTC. The hub is built to stay well under all four:
+  - dashboard polls carry an ETag and get a `304` that reads no rows while nothing changed; heartbeats, inbox reads
+    and live beats are not "changes"; polling stops in hidden tabs and slows to every five minutes when nobody is
+    working, so an idle hub is asleep most of the time;
+  - the overview reads each table once; schema checks run only when the schema version changes;
+  - the live relay stores its replay as one SQL row written at most every five seconds; the runner polls every five
+    minutes;
+  - the hub meters itself: the dashboard headline shows "free tier N% used today" (hover for the numbers) from its own
+    request and row counts. Time in memory is the one meter only Cloudflare can see: Workers & Pages → Durable
+    Objects → Metrics.
+
+  Rough budget for a two-person team working eight hours with the town open: ~30k requests, ~300k rows read, ~5k rows
+  written, ~5,000 GB-s. If you ever get the "daily operation limit exceeded" email anyway, the Workers Paid plan ($5 a
+  month) lifts every ceiling.
 
 ## How the brief's requirements are met
 

@@ -7,6 +7,10 @@ import { HubError, POSTABLE_KINDS, ROLES, TASK_STATUSES, ago, json, keywords, pa
 const MAX_BODY = 1500;
 const MAX_STATE = 8000;
 const SWEEP_EVERY_MS = 60_000;
+/** Bump whenever SCHEMA or COLUMNS change. Stored in PRAGMA user_version so a wake-up skips the catalogue reads. */
+const SCHEMA_VERSION = 2;
+/** Usage counters are written to the usage table every this many requests (one quiet row). */
+const USAGE_FLUSH = 25;
 const ACTIVE_MS = 15 * 60_000;
 const DAY = 86_400_000;
 
@@ -36,6 +40,7 @@ const SCHEMA = [
     updated_by TEXT NOT NULL, decided_by TEXT, note TEXT, updated_at INTEGER NOT NULL)`,
   ...LEARN_SCHEMA,
   `CREATE TABLE IF NOT EXISTS prefs (human TEXT PRIMARY KEY, color TEXT, updated_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS usage (day TEXT PRIMARY KEY, requests INTEGER NOT NULL, rows_read INTEGER NOT NULL, rows_written INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS live (
     id TEXT PRIMARY KEY, agent TEXT NOT NULL, human TEXT NOT NULL, cmd TEXT NOT NULL, cwd TEXT, task_id INTEGER,
     started_at INTEGER NOT NULL, seen_at INTEGER NOT NULL, ended_at INTEGER)`,
@@ -139,6 +144,10 @@ export class Hub extends DurableObject<Env> {
    *  which only costs the next poll one full read. */
   private rev = 0;
   private readonly boot = Math.random().toString(36).slice(2, 8);
+  /** Cursors opened by the request in flight; their rowsRead/rowsWritten are summed when it finishes. */
+  private cursors: SqlStorageCursor<Record<string, SqlStorageValue>>[] = [];
+  private usage = { day: "", requests: 0, rows_read: 0, rows_written: 0 };   // not yet flushed to the usage table
+  private stored: { day: string; requests: number; rows_read: number; rows_written: number } | null = null;
   learn: Learning;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -148,16 +157,24 @@ export class Hub extends DurableObject<Env> {
     this.sql = {
       exec<T extends Record<string, SqlStorageValue>>(q: string, ...b: Bind[]) {
         const c = raw.exec<T>(q, ...b);
+        hub.cursors.push(c);
         if (!/^\s*(SELECT|PRAGMA|CREATE|ALTER)\b/i.test(q) && !q.startsWith(QUIET)) hub.rev++;
         return c;
       },
       get databaseSize() { return raw.databaseSize; },
     } as unknown as SqlStorage;
-    for (const stmt of SCHEMA) this.sql.exec(stmt);
-    for (const [table, col, type] of COLUMNS) {
-      const has = this.rows<{ name: string }>(`PRAGMA table_info(${table})`).some((c) => c.name === col);
-      if (!has) this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+    // The object is re-created on every wake-up. Schema statements read the catalogue each time, so they run only
+    // when the stored schema version is behind (PRAGMA user_version would be free, but Cloudflare forbids it).
+    raw.exec("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)");
+    if (raw.exec<{ v: string }>("SELECT v FROM meta WHERE k = 'schema'").toArray()[0]?.v !== String(SCHEMA_VERSION)) {
+      for (const stmt of SCHEMA) this.sql.exec(stmt);
+      for (const [table, col, type] of COLUMNS) {
+        const has = this.rows<{ name: string }>(`PRAGMA table_info(${table})`).some((c) => c.name === col);
+        if (!has) this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+      }
+      this.sql.exec(QUIET + "INSERT OR REPLACE INTO meta (k, v) VALUES ('schema', ?)", String(SCHEMA_VERSION));
     }
+    this.cursors = [];
     this.learn = new Learning(this.sql, (m) => this.insertMessage(m));
   }
 
@@ -215,9 +232,11 @@ export class Hub extends DurableObject<Env> {
 
       if (route === "GET /overview") {
         const etag = `"${this.boot}-${this.rev}"`;
-        if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag } });
-        const res = json({ ...this.overview(human), admin });
+        const usage = JSON.stringify(this.usageToday());
+        if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag, "x-wcomms-usage": usage } });
+        const res = json({ ...this.overview(human), admin, usage: this.usageToday() });
         res.headers.set("etag", etag);
+        res.headers.set("x-wcomms-usage", usage);
         return res;
       }
 
@@ -310,7 +329,51 @@ export class Hub extends DurableObject<Env> {
     } catch (e) {
       if (e instanceof HubError) return json({ error: e.message }, e.status);
       throw e;
+    } finally {
+      this.account();
     }
+  }
+
+  // ---------- free-tier meter ----------
+
+  private today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /** This UTC day's requests and SQLite rows read/written, the meters Cloudflare's free tier caps. Stored totals plus
+   *  what has not been flushed yet; a hub evicted mid-batch under-counts by at most one batch. */
+  usageToday() {
+    const day = this.today();
+    if (this.stored?.day !== day) {
+      this.stored = this.row<{ day: string; requests: number; rows_read: number; rows_written: number }>("SELECT * FROM usage WHERE day = ?", day)
+        ?? { day, requests: 0, rows_read: 0, rows_written: 0 };
+    }
+    const u = this.usage.day === day ? this.usage : { requests: 0, rows_read: 0, rows_written: 0 };
+    return { day, requests: this.stored.requests + u.requests, rows_read: this.stored.rows_read + u.rows_read, rows_written: this.stored.rows_written + u.rows_written };
+  }
+
+  /** After every request: add up what its cursors read and wrote; flush every USAGE_FLUSH requests. */
+  private account() {
+    const day = this.today();
+    if (this.usage.day !== day) { this.flushUsage(); this.usage = { day, requests: 0, rows_read: 0, rows_written: 0 }; }
+    this.usage.requests++;
+    for (const c of this.cursors) { this.usage.rows_read += c.rowsRead; this.usage.rows_written += c.rowsWritten; }
+    this.cursors = [];
+    if (this.usage.requests >= USAGE_FLUSH) this.flushUsage();
+  }
+
+  private flushUsage() {
+    const u = this.usage;
+    if (!u.day || !u.requests) return;
+    this.usage = { day: u.day, requests: 0, rows_read: 0, rows_written: 0 };
+    this.sql.exec(
+      QUIET + `INSERT INTO usage (day, requests, rows_read, rows_written) VALUES (?, ?, ?, ?)
+       ON CONFLICT(day) DO UPDATE SET requests = requests + excluded.requests, rows_read = rows_read + excluded.rows_read,
+       rows_written = rows_written + excluded.rows_written`,
+      u.day, u.requests, u.rows_read, u.rows_written,
+    );
+    if (this.stored?.day === u.day) { this.stored.requests += u.requests; this.stored.rows_read += u.rows_read; this.stored.rows_written += u.rows_written; }
+    else this.stored = null;
   }
 
   // ---------- agents ----------

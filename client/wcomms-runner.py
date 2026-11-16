@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """wcomms runner: answers approved nudges on this machine when no Claude window is taking them. Standard library only.
 
-  wcomms-runner.py run  <project_dir>   poll the hub every WCOMMS_RUNNER_INTERVAL seconds (default 30)
+  wcomms-runner.py run  <project_dir>   poll the hub every WCOMMS_RUNNER_INTERVAL seconds (default 300)
   wcomms-runner.py once <project_dir>   take and run at most one nudge, then exit (used by tests)
 
 Only nudges this machine's human approved on the dashboard are ever run. Each one runs as headless Claude Code
@@ -48,7 +48,7 @@ def _config():
 URL, TOKEN = _config()
 MACHINE = os.environ.get("WCOMMS_MACHINE") or socket.gethostname().split(".")[0]
 STATE_DIR = os.environ.get("WCOMMS_STATE_DIR", os.path.expanduser("~/.wcomms"))
-INTERVAL = int(os.environ.get("WCOMMS_RUNNER_INTERVAL", "30"))
+INTERVAL = int(os.environ.get("WCOMMS_RUNNER_INTERVAL", "300"))
 TIMEOUT = int(os.environ.get("WCOMMS_RUNNER_TIMEOUT", "900"))
 # No network tools by default: a planted instruction in a file the runner reads must have no way to send data out.
 DEFAULT_TOOLS = "Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(ls:*)"
