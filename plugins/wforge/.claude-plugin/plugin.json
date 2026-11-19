@@ -1,0 +1,37 @@
+{
+  "name": "wforge",
+  "displayName": "wforge",
+  "version": "0.1.0",
+  "description": "Budget-aware build orchestration: right model per step, capped fan-out, usage guard for the 5-hour and weekly windows.",
+  "author": { "name": "arnavnair229" },
+  "repository": "https://github.com/arnavnair229/wcomms",
+  "license": "MIT",
+  "keywords": ["orchestration", "workflows", "budget", "subagents", "rate-limits"],
+  "engines": { "claude-code": ">=2.1.284" },
+  "userConfig": {
+    "soft_threshold": {
+      "type": "number",
+      "title": "Soft threshold (5-hour window %)",
+      "description": "Above this percentage wforge downshifts subagents to cheaper models and lower effort.",
+      "default": 60
+    },
+    "hard_threshold": {
+      "type": "number",
+      "title": "Hard threshold (5-hour window %)",
+      "description": "Above this percentage wforge blocks fan-out: workflows and any subagent that is not on Haiku.",
+      "default": 85
+    },
+    "weekly_hard": {
+      "type": "number",
+      "title": "Weekly hard threshold (%)",
+      "description": "Above this percentage of the 7-day window wforge blocks fan-out regardless of the 5-hour window.",
+      "default": 90
+    },
+    "max_agents": {
+      "type": "number",
+      "title": "Max subagents per 10 minutes",
+      "description": "Subagent launches allowed in any rolling 10-minute window. The 11th and later are refused.",
+      "default": 8
+    }
+  }
+}

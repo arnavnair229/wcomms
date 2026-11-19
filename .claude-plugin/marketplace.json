@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "wcomms",
+  "description": "wcomms add-ons for Claude Code. wforge: budget-aware build orchestration with the right model per step, capped fan-out, and a guard for the 5-hour and weekly windows.",
+  "owner": { "name": "arnavnair229" },
+  "plugins": [
+    {
+      "name": "wforge",
+      "description": "Plan, build and verify with tiered models and a usage guard. Runs on your own Claude subscription or API key.",
+      "source": "./plugins/wforge",
+      "category": "development"
+    }
+  ]
+}

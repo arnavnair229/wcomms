@@ -22,6 +22,7 @@ people, machines and the cloud VM. Coordination only: nothing here can trade, me
 | Repo kit | `repo-kit/`, `scripts/install-into-repo.sh` | Merges the hooks into `.claude/settings.json`, adds `.mcp.json` and appends the protocol to `CLAUDE.md`. |
 | Dashboard | `worker/src/dashboard.html`, served at `/` | Who's working, tasks board, live feed with search, this week's results, decisions and questions, and state. Humans can post and add tasks, and approve learning proposals. |
 | Roles | `repo-kit/.claude/agents/*.md` | `planner`, `researcher`, `coder`, `reviewer` and `backtester` subagents, each with a wcomms contract. |
+| Add-on: wforge | `plugins/wforge/`, `.claude-plugin/marketplace.json` | A Claude Code plugin for one builder's own sessions: Opus plans, Sonnet builds, Haiku checks, four capped workflows, and a guard that keeps fan-out inside the 5-hour and weekly windows. See [Add-on: wforge](#add-on-wforge). |
 | Learning loop | `worker/src/learn.ts`, `client/wcomms-learn.py` | Shared skills plus a small shared memory, fed by agents and a background reviewer. Humans approve everything before it goes live. |
 
 ## How it fits together
@@ -234,6 +235,30 @@ per review, on the account of whoever's session it is. Set `WCOMMS_REVIEW_EVERY=
 
 Shared skills are deliberately not in git: the installer gitignores `.claude/skills/wc-*/`. The hub keeps the full
 version history.
+
+## Add-on: wforge
+
+wcomms coordinates the people and agents on a repo. wforge is the other half: it makes one person's own Claude Code
+sessions cheaper and safer to fan out. It is a plugin in this repo, installed from the marketplace manifest at the
+repo root, and it runs on your own subscription or API key like everything else here.
+
+```bash
+claude plugin marketplace add arnavnair229/wcomms
+claude plugin install wforge@wcomms
+```
+
+Then in a session run `/wforge:setup` once. It installs a status-line bridge that records your 5-hour and 7-day
+windows locally, so from the next session on:
+
+- `/wforge:forge <task>` sizes the task and picks the cheapest lane: inline, a few tiered subagents, or one workflow.
+- `/wforge:budget` shows the windows and the lane in force.
+- A PreToolUse guard downshifts subagents to Sonnet at low effort above 60% of the window, blocks workflows and
+  non-Haiku subagents above 85% (or 90% weekly), refuses more than 8 launches in ten minutes, and records a lockout
+  when the API answers with a rate limit. Thresholds are in `/config` under the plugin.
+- `plugins/wforge/bin/wforge-bulk` runs bulk work on `ANTHROPIC_API_KEY` so it never touches the subscription window.
+  Max, Ultra and Team plans include monthly API credits for exactly that path.
+
+Full documentation: [plugins/wforge/README.md](plugins/wforge/README.md). Tests: `plugins/wforge/tests/run.sh`.
 
 ## Check it works
 

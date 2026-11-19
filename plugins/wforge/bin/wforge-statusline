@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Status-line bridge. Claude Code pipes its status JSON here on every update.
+
+Two jobs:
+  1. Persist rate_limits (5-hour, 7-day) to <config>/wforge/usage.json so the
+     hooks can read the window without spending a request.
+  2. Print one line for the status bar.
+
+Chain an existing status line with:  wforge-statusline --chain "<your old command>"
+The old command gets the same JSON on stdin and its output comes first.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+import wforge_common as W  # noqa: E402
+
+
+def bar(pct):
+    if pct is None:
+        return "--"
+    n = max(0, min(10, int(round(pct / 10.0))))
+    return "▓" * n + "░" * (10 - n)
+
+
+def main():
+    raw = sys.stdin.read()
+    try:
+        data = json.loads(raw) if raw.strip() else {}
+    except ValueError:
+        data = {}
+
+    prev = W.read_json(W.usage_path(), {}) or {}
+    out = dict(prev)
+    out["updated_at"] = int(time.time())
+    out["session_id"] = data.get("session_id") or prev.get("session_id")
+    model = (data.get("model") or {}).get("display_name")
+    if model:
+        out["model"] = model
+    ctx = (data.get("context_window") or {}).get("used_percentage")
+    if ctx is not None:
+        out["context_pct"] = ctx
+    rl = data.get("rate_limits") or {}
+    for key in ("five_hour", "seven_day"):
+        win = rl.get(key)
+        if isinstance(win, dict) and win.get("used_percentage") is not None:
+            out[key] = {"used_percentage": win.get("used_percentage"), "resets_at": win.get("resets_at")}
+    W.write_json(W.usage_path(), out)
+
+    snap = W.snapshot()
+    th = W.thresholds()
+    lvl = W.level(snap, th)
+    tag = {"ok": "", "soft": " lean", "hard": " HOLD", "unknown": ""}[lvl]
+    pieces = []
+    if out.get("model"):
+        pieces.append("[%s]" % out["model"])
+    if out.get("context_pct") is not None:
+        pieces.append("ctx %d%%" % out["context_pct"])
+    if snap["known"]:
+        pieces.append("5h %s %d%% ↻%s" % (bar(snap["five"]), snap["five"], W.fmt_reset(snap["five_resets"])))
+        if snap["seven"] is not None:
+            pieces.append("7d %d%%" % snap["seven"])
+    else:
+        pieces.append("5h --")
+    line = " · ".join(pieces) + ("  wforge" + tag if tag else "")
+
+    args = sys.argv[1:]
+    if len(args) >= 2 and args[0] == "--chain" and args[1].strip():
+        try:
+            r = subprocess.run(args[1], shell=True, input=raw, capture_output=True, text=True, timeout=5)
+            first = (r.stdout or "").strip()
+            if first:
+                line = first + "  " + line
+        except (OSError, subprocess.SubprocessError):
+            pass
+    sys.stdout.write(line)
+
+
+if __name__ == "__main__":
+    main()
