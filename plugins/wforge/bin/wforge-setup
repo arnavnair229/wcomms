@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Install the status-line bridge into ~/.claude/settings.json.
 
-An existing statusLine command is chained, not replaced. Re-running is safe.
+The bridge script is copied to <config>/wforge/bridge/ so the status line keeps working when the plugin
+updates and its cache directory changes. An existing statusLine command is chained, not replaced.
+Re-running is safe and refreshes the copy.
   wforge-setup           install or refresh
   wforge-setup --remove  restore the previous status line
 """
@@ -14,8 +16,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
 import wforge_common as W  # noqa: E402
 
-BRIDGE = os.path.join(HERE, "wforge-statusline")
+SRC_BRIDGE = os.path.join(HERE, "wforge-statusline")
+SRC_COMMON = os.path.join(HERE, "..", "hooks", "wforge_common.py")
 MARK = "wforge-statusline"
+
+
+def install_bridge_copy():
+    """Copy the bridge and its helper to a path that survives plugin updates; return the bridge path."""
+    dest = os.path.join(W.state_dir(), "bridge")
+    os.makedirs(dest, exist_ok=True)
+    bridge = os.path.join(dest, "wforge-statusline")
+    shutil.copy(SRC_BRIDGE, bridge)
+    shutil.copy(SRC_COMMON, os.path.join(dest, "wforge_common.py"))
+    os.chmod(bridge, 0o755)
+    return bridge
 
 
 def settings_path():
@@ -36,14 +50,17 @@ def install():
     p, data = load()
     sl = data.get("statusLine") or {}
     old_cmd = sl.get("command", "") if sl.get("type") == "command" else ""
+    bridge = install_bridge_copy()
+    backup_path = os.path.join(W.state_dir(), "statusline.backup.json")
     if MARK in old_cmd:
-        print("wforge status line already installed: " + old_cmd)
-        return
-    backup = os.path.join(W.state_dir(), "statusline.backup.json")
-    W.write_json(backup, sl)
-    cmd = 'python3 "%s"' % BRIDGE
-    if old_cmd.strip():
-        cmd += " --chain " + json.dumps(old_cmd)
+        # Already installed: refresh the copy and re-point at the stable path, keeping any chained command.
+        chained = (W.read_json(backup_path, {}) or {}).get("command", "")
+    else:
+        W.write_json(backup_path, sl)
+        chained = old_cmd
+    cmd = 'python3 "%s"' % bridge
+    if chained.strip():
+        cmd += " --chain " + json.dumps(chained)
     data["statusLine"] = {"type": "command", "command": cmd, "refreshInterval": 30}
     if os.path.exists(p):
         shutil.copy(p, p + ".wforge.bak")
@@ -51,8 +68,9 @@ def install():
         json.dump(data, f, indent=2)
         f.write("\n")
     print("installed status line bridge in " + p)
-    if old_cmd.strip():
-        print("chained your previous status line: " + old_cmd)
+    print("bridge copy: " + bridge)
+    if chained.strip():
+        print("chained your previous status line: " + chained)
     print("open a new Claude Code session; the window appears after the first API response")
 
 
@@ -70,5 +88,4 @@ def remove():
 
 
 if __name__ == "__main__":
-    os.chmod(BRIDGE, 0o755)
     remove() if "--remove" in sys.argv else install()
