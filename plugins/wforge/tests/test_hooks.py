@@ -178,6 +178,19 @@ class BridgeTests(Base):
         s = load(os.path.join(self.tmp, "settings.json"))
         self.assertIn("wforge-statusline", s["statusLine"]["command"])
         self.assertIn("--chain", s["statusLine"]["command"])
+        # The command points at the stable copy under the config dir, not the plugin cache.
+        self.assertIn(os.path.join(self.tmp, "wforge", "bridge"), s["statusLine"]["command"])
+        bridge = os.path.join(self.tmp, "wforge", "bridge", "wforge-statusline")
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "wforge", "bridge", "wforge_common.py")))
+        # The copied bridge runs on its own, with the same stdin contract.
+        r = run(bridge, {"model": {"display_name": "Opus"}}, self.env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("[Opus]", r.stdout)
+        # Re-running keeps the chained command and does not nest the bridge inside itself.
+        r = run(os.path.join(BIN, "wforge-setup"), {}, self.env)
+        s = load(os.path.join(self.tmp, "settings.json"))
+        self.assertEqual(s["statusLine"]["command"].count("wforge-statusline"), 1)
+        self.assertIn("echo old", s["statusLine"]["command"])
         r = run(os.path.join(BIN, "wforge-setup"), {}, self.env, args=("--remove",))
         s = load(os.path.join(self.tmp, "settings.json"))
         self.assertEqual(s["statusLine"]["command"], "echo old")

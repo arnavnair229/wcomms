@@ -16,7 +16,9 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# In the plugin, wforge_common lives in ../hooks; in the installed bridge copy it sits next to this file.
 sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+sys.path.insert(0, HERE)
 import wforge_common as W  # noqa: E402
 
 
