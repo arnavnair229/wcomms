@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Print the usage window and the lane wforge will apply. --json for machine output."""
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+import wforge_common as W  # noqa: E402
+
+LANES = {
+    "ok": ("normal", "Subagents and workflows allowed. Use the tier table: opus plans, sonnet builds, haiku checks."),
+    "soft": ("lean", "Subagents downshift to sonnet at low effort; workflows allowed but keep them small."),
+    "hard": ("hold", "Workflows blocked and only haiku subagents run. Work inline or move bulk work to the API lane."),
+    "unknown": ("passive", "No snapshot yet. Run /wforge:setup, then make one request so Claude Code reports the window."),
+}
+
+
+def main():
+    th = W.thresholds()
+    snap = W.snapshot()
+    lvl = W.level(snap, th)
+    name, advice = LANES[lvl]
+    api = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    if "--json" in sys.argv:
+        print(json.dumps({
+            "level": lvl, "lane": name, "five_hour": snap["five"], "seven_day": snap["seven"],
+            "five_resets": snap["five_resets"], "seven_resets": snap["seven_resets"],
+            "snapshot_age_s": int(snap["age"]) if snap["known"] else None,
+            "lockout_until": snap["lockout_until"] or None, "api_key_present": api,
+            "thresholds": th,
+        }))
+        return
+    print("wforge usage")
+    print("  window : " + W.summary_line(snap))
+    if snap["known"]:
+        print("  snapshot age : %d min" % (snap["age"] // 60))
+    print("  lane   : %s" % name)
+    print("  advice : %s" % advice)
+    print("  thresholds : soft %d%% · hard %d%% · weekly %d%% · max %d launches/10min"
+          % (th["soft"], th["hard"], th["weekly"], th["max_agents"]))
+    print("  API lane : %s" % ("ANTHROPIC_API_KEY set, bulk work can leave the window"
+                               if api else "no ANTHROPIC_API_KEY in this shell"))
+
+
+if __name__ == "__main__":
+    main()

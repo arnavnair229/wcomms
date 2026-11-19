@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""Install the status-line bridge into ~/.claude/settings.json.
+
+An existing statusLine command is chained, not replaced. Re-running is safe.
+  wforge-setup           install or refresh
+  wforge-setup --remove  restore the previous status line
+"""
+import json
+import os
+import shutil
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+import wforge_common as W  # noqa: E402
+
+BRIDGE = os.path.join(HERE, "wforge-statusline")
+MARK = "wforge-statusline"
+
+
+def settings_path():
+    return os.path.join(W.config_dir(), "settings.json")
+
+
+def load():
+    p = settings_path()
+    data = W.read_json(p, None)
+    if data is None:
+        if os.path.exists(p):
+            sys.exit("settings.json is not valid JSON; fix it first: " + p)
+        data = {}
+    return p, data
+
+
+def install():
+    p, data = load()
+    sl = data.get("statusLine") or {}
+    old_cmd = sl.get("command", "") if sl.get("type") == "command" else ""
+    if MARK in old_cmd:
+        print("wforge status line already installed: " + old_cmd)
+        return
+    backup = os.path.join(W.state_dir(), "statusline.backup.json")
+    W.write_json(backup, sl)
+    cmd = 'python3 "%s"' % BRIDGE
+    if old_cmd.strip():
+        cmd += " --chain " + json.dumps(old_cmd)
+    data["statusLine"] = {"type": "command", "command": cmd, "refreshInterval": 30}
+    if os.path.exists(p):
+        shutil.copy(p, p + ".wforge.bak")
+    with open(p, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    print("installed status line bridge in " + p)
+    if old_cmd.strip():
+        print("chained your previous status line: " + old_cmd)
+    print("open a new Claude Code session; the window appears after the first API response")
+
+
+def remove():
+    p, data = load()
+    backup = W.read_json(os.path.join(W.state_dir(), "statusline.backup.json"), {}) or {}
+    if backup:
+        data["statusLine"] = backup
+    else:
+        data.pop("statusLine", None)
+    with open(p, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    print("restored previous status line in " + p)
+
+
+if __name__ == "__main__":
+    os.chmod(BRIDGE, 0o755)
+    remove() if "--remove" in sys.argv else install()
