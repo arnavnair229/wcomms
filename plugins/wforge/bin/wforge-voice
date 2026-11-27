@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Voice input for wforge sessions through Handy (handy.computer), a free, offline speech-to-text app.
+
+Handy is a desktop app, not a plugin: you hold a shortcut, speak, release, and the words are pasted
+into whatever text field is focused, including the Claude Code prompt. This tool only checks and
+reports; the download and install are yours to run.
+
+  wforge-voice status          installed? running? which shortcut and model, what to do next (--json for machines)
+  wforge-voice install         print the install command for this platform (--run executes it after you agree)
+  wforge-voice open            launch Handy
+  wforge-voice card            the spoken-prompt card for wforge: what to say so the right skill runs
+"""
+import json
+import os
+import platform
+import plistlib
+import subprocess
+import sys
+
+APP_ID = "com.pais.handy"
+SYSTEM = platform.system()
+
+
+def settings_path():
+    home = os.path.expanduser("~")
+    if SYSTEM == "Darwin":
+        return os.path.join(home, "Library", "Application Support", APP_ID, "settings_store.json")
+    if SYSTEM == "Linux":
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share")
+        return os.path.join(base, APP_ID, "settings_store.json")
+    if SYSTEM == "Windows":
+        return os.path.join(os.environ.get("APPDATA", home), APP_ID, "settings_store.json")
+    return ""
+
+
+def app_paths():
+    if SYSTEM == "Darwin":
+        return ["/Applications/Handy.app", os.path.expanduser("~/Applications/Handy.app")]
+    return []
+
+
+def installed():
+    for p in app_paths():
+        if os.path.isdir(p):
+            return p
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        for name in ("handy", "Handy"):
+            if os.path.isfile(os.path.join(d, name)):
+                return os.path.join(d, name)
+    return ""
+
+
+def version(app):
+    if SYSTEM == "Darwin" and app.endswith(".app"):
+        try:
+            with open(os.path.join(app, "Contents", "Info.plist"), "rb") as f:
+                return plistlib.load(f).get("CFBundleShortVersionString", "")
+        except (OSError, ValueError):
+            return ""
+    return ""
+
+
+def running():
+    try:
+        r = subprocess.run(["pgrep", "-x", "Handy"], capture_output=True, text=True, timeout=5)
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def read_settings():
+    p = settings_path()
+    try:
+        with open(p) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def install_command():
+    if SYSTEM == "Darwin":
+        return "brew install --cask handy"
+    if SYSTEM == "Windows":
+        return "winget install cjpais.Handy"
+    return "download the .deb, .rpm or AppImage from https://github.com/cjpais/Handy/releases and install it with your package manager"
+
+
+def default_shortcut():
+    return {"Darwin": "option+space", "Windows": "ctrl+space", "Linux": "ctrl+alt+space"}.get(SYSTEM, "alt+space")
+
+
+def status(as_json):
+    app = installed()
+    st = read_settings()
+    bindings = st.get("bindings") or {}
+    transcribe = (bindings.get("transcribe") or {}).get("current_binding")
+    info = {
+        "platform": SYSTEM,
+        "installed": bool(app),
+        "path": app,
+        "version": version(app) if app else "",
+        "running": running() if app else False,
+        "settings_found": bool(st),
+        "shortcut": transcribe or (default_shortcut() if app else None),
+        "activation": st.get("shortcut_activation"),
+        "model": st.get("selected_model") or st.get("model") or None,
+        "install_command": install_command(),
+    }
+    if as_json:
+        print(json.dumps(info))
+        return
+    print("wforge voice (Handy)")
+    if not app:
+        print("  installed : no")
+        print("  install   : " + info["install_command"])
+        print("  then      : open Handy once, allow Microphone and Accessibility, pick a model, set the shortcut")
+        return
+    print("  installed : %s%s" % (app, (" v" + info["version"]) if info["version"] else ""))
+    print("  running   : %s" % ("yes" if info["running"] else "no (wforge-voice open)"))
+    print("  shortcut  : %s%s" % (info["shortcut"], "" if transcribe else " (default; settings not read yet)"))
+    if info["activation"]:
+        print("  mode      : %s" % info["activation"])
+    if info["model"]:
+        print("  model     : %s" % info["model"])
+    print("  use       : focus the Claude Code prompt, hold the shortcut, speak, release, then press Enter")
+
+
+def card():
+    print("""wforge spoken-prompt card (hold the Handy shortcut, say it, release, press Enter)
+
+  "forge ..."            size the task and pick the cheapest lane          -> /wforge:forge
+  "crew add ..."         file a task without starting it                   -> /wforge:crew
+  "crew next"            what the window allows right now                  -> /wforge:crew
+  "bearings"             one-screen digest: window, backlog, decisions      -> /wforge:bearings
+  "budget"               the 5-hour and weekly windows                      -> /wforge:budget
+  "stow"                 end-of-session sweep into CLAUDE.md and the backlog-> /wforge:stow
+  "scout: <question>"    read-only investigation, no edits
+  "ship: <change>"       a change that must land on a branch
+
+Say "new line" for a line break, name files by path ("src slash auth dot ts"), and say "done"
+at the end of a long dictation so you remember to press Enter. Handy pastes plain text only;
+the skills recognise the leading word, nothing listens for it in the background.""")
+
+
+def main():
+    argv = sys.argv[1:]
+    cmd = argv[0] if argv else "status"
+    as_json = "--json" in argv
+    if cmd in ("-h", "--help"):
+        print(__doc__.strip())
+    elif cmd == "status":
+        status(as_json)
+    elif cmd == "install":
+        cmd_line = install_command()
+        if installed():
+            print("Handy is already installed at " + installed())
+            return
+        if "--run" in argv and SYSTEM == "Darwin":
+            print("running: " + cmd_line)
+            sys.exit(subprocess.call(cmd_line.split()))
+        print(cmd_line)
+        if SYSTEM == "Darwin":
+            print("(the Homebrew cask is community maintained; the signed .dmg is at https://handy.computer)")
+    elif cmd == "open":
+        if SYSTEM == "Darwin":
+            sys.exit(subprocess.call(["open", "-a", "Handy"]))
+        print("start Handy from your application menu")
+    elif cmd == "card":
+        card()
+    else:
+        sys.exit("unknown command %s; see --help" % cmd)
+
+
+if __name__ == "__main__":
+    main()

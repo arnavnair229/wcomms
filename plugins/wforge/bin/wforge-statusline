@@ -68,6 +68,8 @@ def main():
             pieces.append("7d %d%%" % snap["seven"])
     else:
         pieces.append("5h --")
+    if out.get("context_pct") is not None and out["context_pct"] >= 75:
+        pieces.append("compact?")
     line = " · ".join(pieces) + ("  wforge" + tag if tag else "")
 
     args = sys.argv[1:]

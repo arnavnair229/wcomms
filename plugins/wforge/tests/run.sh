@@ -14,10 +14,11 @@ for f in workflows/*.js; do
 done
 echo "== python syntax"
 python3 -m py_compile hooks/*.py sdk/wforge_api.py
-for f in bin/wforge-statusline bin/wforge-usage bin/wforge-setup; do
+for f in bin/wforge-statusline bin/wforge-usage bin/wforge-setup bin/wforge-crew bin/wforge-voice; do
   python3 -m py_compile "$f"
 done
 sh -n bin/wforge-bulk
+sh -n bin/wforge-nightshift
 echo "== hooks json"
 python3 -c "import json; json.load(open('hooks/hooks.json')); print('ok hooks.json')"
 echo "== tests"

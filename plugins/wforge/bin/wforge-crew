@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+"""Solo-dev crew backlog: file work, pick what the window allows, measure what each task cost.
+
+The backlog is one JSON file per project at <repo root>/.wforge/crew.json (override with
+WFORGE_CREW_FILE or --root DIR). Output is short on purpose; add --json anywhere for machines.
+
+  wforge-crew add "title" [--shape ship|scout] [--size S|M|L] [--note TEXT]
+  wforge-crew list [--all]            ready, held and running tasks (--all adds done and dropped)
+  wforge-crew show ID
+  wforge-crew next                    what the current usage lane allows, with the lane to use
+  wforge-crew dispatch [--max N]      JSON args for the wforge:crew workflow (ready M/L ship and scout tasks)
+  wforge-crew start ID [--branch B]   mark running; stamps the 5-hour window
+  wforge-crew done ID [--result TEXT] [--branch B]   mark done; stamps the window and records the cost
+  wforge-crew hold ID "reason"        park a task behind a decision
+  wforge-crew release ID              un-hold
+  wforge-crew drop ID
+  wforge-crew report                  digest: counts, running, recent costs, open decisions, window
+
+Shapes follow firstmate: a ship task delivers a change on a branch; a scout task delivers a report.
+Sizes follow /wforge:forge: S inline, M a few tiered subagents, L one workflow.
+wforge-crew never merges, pushes or deploys. It is a ledger.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+import wforge_common as W  # noqa: E402
+
+SHAPES = ("ship", "scout")
+SIZES = ("S", "M", "L")
+STATES = ("ready", "held", "running", "done", "dropped")
+LANE_FOR_SIZE = {"S": "inline", "M": "subagents", "L": "workflow"}
+
+
+def repo_root(override=None):
+    if override:
+        return os.path.abspath(override)
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return os.getcwd()
+
+
+def crew_path(root):
+    env = os.environ.get("WFORGE_CREW_FILE")
+    if env:
+        return env
+    return os.path.join(root, ".wforge", "crew.json")
+
+
+def load(path, root):
+    data = W.read_json(path, None)
+    if data is None:
+        data = {"version": 1, "project": os.path.basename(root), "next_id": 1, "tasks": []}
+    return data
+
+
+def save(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def find(data, tid):
+    tid = (tid or "").upper()
+    for t in data["tasks"]:
+        if t["id"] == tid:
+            return t
+    sys.exit("no task %s" % tid)
+
+
+def flag(argv, name, default=None, has_value=True):
+    if name not in argv:
+        return default
+    i = argv.index(name)
+    if not has_value:
+        argv.pop(i)
+        return True
+    if i + 1 >= len(argv):
+        sys.exit("%s needs a value" % name)
+    val = argv[i + 1]
+    del argv[i:i + 2]
+    return val
+
+
+def line(t):
+    extra = ""
+    if t["state"] == "held" and t.get("hold"):
+        extra = "  (held: %s)" % t["hold"]
+    elif t["state"] == "running":
+        extra = "  (running %d min%s)" % ((time.time() - t["started"]) // 60, ", " + t["branch"] if t.get("branch") else "")
+    elif t["state"] == "done" and t.get("cost_pts") is not None:
+        extra = "  (+%s pts)" % t["cost_pts"]
+    return "%-4s %-8s %-5s %s  %s%s" % (t["id"], t["state"], t["shape"], t["size"], t["title"], extra)
+
+
+def out(argv, obj, text):
+    if "--json" in argv:
+        print(json.dumps(obj))
+    else:
+        print(text)
+
+
+def lane_allows(level, t):
+    """Which tasks the current usage level permits. hold: S ship or any scout. lean: S and M. ok/unknown: all."""
+    if level == "hard":
+        return t["size"] == "S" or t["shape"] == "scout"
+    if level == "soft":
+        return t["size"] in ("S", "M")
+    return True
+
+
+def cmd_add(argv, data):
+    shape = flag(argv, "--shape", "ship")
+    size = flag(argv, "--size", "M").upper()
+    note = flag(argv, "--note", "")
+    title = " ".join(a for a in argv if a != "--json").strip()
+    if not title:
+        sys.exit("add needs a title")
+    if shape not in SHAPES:
+        sys.exit("shape must be ship or scout")
+    if size not in SIZES:
+        sys.exit("size must be S, M or L")
+    t = {"id": "T%d" % data["next_id"], "title": title, "shape": shape, "size": size, "state": "ready",
+         "note": note, "hold": "", "branch": "", "result": "", "created": int(time.time()),
+         "started": None, "finished": None, "window_start": None, "window_end": None, "cost_pts": None}
+    data["next_id"] += 1
+    data["tasks"].append(t)
+    out(argv, t, "added %s %s %s  %s" % (t["id"], shape, size, title))
+    return True
+
+
+def cmd_list(argv, data):
+    show_all = flag(argv, "--all", False, has_value=False)
+    tasks = [t for t in data["tasks"] if show_all or t["state"] in ("ready", "held", "running")]
+    if "--json" in argv:
+        print(json.dumps(tasks))
+    elif not tasks:
+        print("backlog empty. wforge-crew add \"title\" --shape ship|scout --size S|M|L")
+    else:
+        for t in tasks:
+            print(line(t))
+    return False
+
+
+def cmd_show(argv, data):
+    t = find(data, argv[0] if argv else "")
+    if "--json" in argv:
+        print(json.dumps(t))
+        return False
+    print(line(t))
+    for k in ("note", "hold", "branch", "result"):
+        if t.get(k):
+            print("  %s: %s" % (k, t[k]))
+    if t.get("window_start") is not None:
+        print("  window: 5h %s%% -> %s%%" % (t["window_start"], t["window_end"] if t["window_end"] is not None else "?"))
+    return False
+
+
+def cmd_next(argv, data):
+    snap = W.snapshot()
+    lvl = W.level(snap, W.thresholds())
+    ready = [t for t in data["tasks"] if t["state"] == "ready"]
+    allowed = [t for t in ready if lane_allows(lvl, t)]
+    blocked = [t for t in ready if not lane_allows(lvl, t)]
+    if "--json" in argv:
+        print(json.dumps({"level": lvl, "window": W.summary_line(snap),
+                          "allowed": [dict(t, lane=LANE_FOR_SIZE[t["size"]]) for t in allowed],
+                          "blocked": [t["id"] for t in blocked]}))
+        return False
+    print("window: %s (lane %s)" % (W.summary_line(snap), {"ok": "normal", "soft": "lean", "hard": "hold", "unknown": "passive"}[lvl]))
+    if not ready:
+        print("nothing ready.")
+        return False
+    for t in allowed:
+        print("%s  via %s" % (line(t), LANE_FOR_SIZE[t["size"]]))
+    if blocked:
+        print("waiting for the window: %s" % ", ".join(t["id"] for t in blocked))
+    return False
+
+
+def cmd_dispatch(argv, data):
+    cap = int(flag(argv, "--max", "3"))
+    snap = W.snapshot()
+    lvl = W.level(snap, W.thresholds())
+    picked = []
+    for t in data["tasks"]:
+        if t["state"] != "ready" or not lane_allows(lvl, t):
+            continue
+        if t["shape"] == "ship" and t["size"] == "S":
+            continue  # S ship tasks are done inline, not by the crew
+        picked.append({"id": t["id"], "title": t["title"], "shape": t["shape"], "size": t["size"], "note": t.get("note", "")})
+        if len(picked) >= cap:
+            break
+    print(json.dumps({"tasks": picked, "maxParallel": 1 if lvl == "soft" else 2, "isolate": True, "level": lvl}))
+    return False
+
+
+def cmd_start(argv, data):
+    branch = flag(argv, "--branch", "")
+    t = find(data, argv[0] if argv else "")
+    if t["state"] in ("done", "dropped"):
+        sys.exit("%s is %s" % (t["id"], t["state"]))
+    rec = W.mark("start", "crew %s" % t["id"])
+    t.update({"state": "running", "started": rec["t"], "window_start": rec["five"], "hold": ""})
+    if branch:
+        t["branch"] = branch
+    out(argv, t, "started %s at 5h %s" % (t["id"], ("%s%%" % rec["five"]) if rec["five"] is not None else "unknown"))
+    return True
+
+
+def cmd_done(argv, data):
+    result = flag(argv, "--result", "")
+    branch = flag(argv, "--branch", "")
+    t = find(data, argv[0] if argv else "")
+    rec = W.mark("end", "crew %s" % t["id"])
+    start = {"five": t.get("window_start"), "five_resets": None, "t": t.get("started") or rec["t"]}
+    cost = W.window_cost(start, rec) if t.get("window_start") is not None else None
+    t.update({"state": "done", "finished": rec["t"], "window_end": rec["five"], "cost_pts": cost})
+    if result:
+        t["result"] = result
+    if branch:
+        t["branch"] = branch
+    msg = "done %s" % t["id"]
+    if cost is not None:
+        msg += ", cost +%s pts of the 5-hour window" % cost
+    elif t.get("window_start") is not None:
+        msg += ", cost unknown (window reset or no snapshot)"
+    out(argv, t, msg)
+    return True
+
+
+def cmd_hold(argv, data):
+    t = find(data, argv[0] if argv else "")
+    reason = " ".join(a for a in argv[1:] if a != "--json").strip() or "decision needed"
+    t.update({"state": "held", "hold": reason})
+    out(argv, t, "held %s: %s" % (t["id"], reason))
+    return True
+
+
+def cmd_release(argv, data):
+    t = find(data, argv[0] if argv else "")
+    t.update({"state": "ready", "hold": ""})
+    out(argv, t, "released %s" % t["id"])
+    return True
+
+
+def cmd_drop(argv, data):
+    t = find(data, argv[0] if argv else "")
+    t["state"] = "dropped"
+    out(argv, t, "dropped %s" % t["id"])
+    return True
+
+
+def cmd_report(argv, data):
+    snap = W.snapshot()
+    lvl = W.level(snap, W.thresholds())
+    now = time.time()
+    by = {s: [t for t in data["tasks"] if t["state"] == s] for s in STATES}
+    recent = [t for t in by["done"] if t.get("finished") and now - t["finished"] < 86400]
+    costs = [t["cost_pts"] for t in recent if t.get("cost_pts") is not None]
+    rep = {"project": data.get("project"), "level": lvl, "window": W.summary_line(snap),
+           "counts": {s: len(v) for s, v in by.items()},
+           "running": by["running"], "held": by["held"], "done_24h": recent,
+           "measured_24h": {"tasks": len(costs), "total_pts": round(sum(costs), 1) if costs else None}}
+    if "--json" in argv:
+        print(json.dumps(rep))
+        return False
+    print("crew report: %s" % data.get("project"))
+    print("  window : %s" % W.summary_line(snap))
+    print("  backlog: %d ready, %d held, %d running, %d done, %d dropped" % tuple(len(by[s]) for s in STATES))
+    for t in by["running"]:
+        print("  " + line(t))
+    for t in by["held"]:
+        print("  " + line(t))
+    if recent:
+        print("  done in the last 24h:")
+        for t in recent:
+            print("    " + line(t) + (("  -> " + t["branch"]) if t.get("branch") else ""))
+        if costs:
+            print("  measured: %d tasks, %s pts of the 5-hour window in total" % (len(costs), round(sum(costs), 1)))
+    return False
+
+
+COMMANDS = {"add": cmd_add, "list": cmd_list, "show": cmd_show, "next": cmd_next, "dispatch": cmd_dispatch,
+            "start": cmd_start, "done": cmd_done, "hold": cmd_hold, "release": cmd_release, "drop": cmd_drop,
+            "report": cmd_report}
+
+
+def main():
+    argv = sys.argv[1:]
+    root = flag(argv, "--root", None)
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return
+    cmd, rest = argv[0], argv[1:]
+    if cmd not in COMMANDS:
+        sys.exit("unknown command %s; see --help" % cmd)
+    root = repo_root(root)
+    path = crew_path(root)
+    data = load(path, root)
+    if COMMANDS[cmd](rest, data):
+        save(path, data)
+
+
+if __name__ == "__main__":
+    main()
