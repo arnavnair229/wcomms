@@ -22,6 +22,8 @@ Run `python3 "${CLAUDE_PLUGIN_ROOT}/bin/wforge-usage" --json` once. It returns `
 
 When in doubt, size down. Most requests are S or M. A workflow for an S task costs ten times the work and finishes later.
 
+Several independent tasks at once, or work the user wants done while they are away: hand off to the `wforge:crew` skill, which files them and runs the `wforge:crew` workflow under the same caps.
+
 ## 3. Tier table
 
 | Step | Model | Effort | Agent |

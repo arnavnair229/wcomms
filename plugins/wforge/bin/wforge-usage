@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Print the usage window and the lane wforge will apply. --json for machine output."""
+"""Print the usage window and the lane wforge will apply. --json for machine output.
+
+Measuring what a task costs:
+  wforge-usage --mark start "<label>"   stamp the window when a task begins
+  wforge-usage --mark end "<label>"     stamp it again and print the points spent
+  wforge-usage --marks                  list the last 20 measured tasks
+wforge-crew start/done call the same marks, so crew tasks are measured automatically.
+"""
 import json
 import os
 import sys
@@ -16,7 +23,55 @@ LANES = {
 }
 
 
+def fmt_pair(st, en):
+    label = (st or en).get("label") or "?"
+    if en is None:
+        return "%-28s started %s, 5h %s%%, still open" % (label[:28], W.fmt_reset(st["t"]), st.get("five") if st.get("five") is not None else "?")
+    if st is None:
+        return "%-28s ended %s without a start mark" % (label[:28], W.fmt_reset(en["t"]))
+    cost = W.window_cost(st, en)
+    mins = max(0, (en["t"] - st["t"]) // 60)
+    if cost is None:
+        pct = lambda m: ("%s%%" % m["five"]) if m.get("five") is not None else "?"
+        return "%-28s %d min, 5h %s -> %s (cost unknown: window reset or no snapshot)" % (
+            label[:28], mins, pct(st), pct(en))
+    return "%-28s %d min, 5h %s%% -> %s%% (+%s pts)" % (label[:28], mins, st["five"], en["five"], cost)
+
+
+def do_mark(argv):
+    i = argv.index("--mark")
+    kind = argv[i + 1] if len(argv) > i + 1 else ""
+    label = " ".join(argv[i + 2:]).strip() or "task"
+    if kind not in ("start", "end"):
+        sys.exit("usage: wforge-usage --mark start|end \"<label>\"")
+    rec = W.mark(kind, label)
+    if "--json" in argv:
+        print(json.dumps(rec))
+        return
+    if kind == "start":
+        print("marked start of %r at 5h %s" % (label, ("%s%%" % rec["five"]) if rec["five"] is not None else "unknown"))
+        return
+    pairs = [p for p in W.pair_marks(W.read_marks()) if p[1] is rec or (p[1] and p[1]["t"] == rec["t"] and p[1]["label"] == label)]
+    print(fmt_pair(*pairs[-1]) if pairs else "marked end of %r" % label)
+
+
+def do_marks(argv):
+    pairs = W.pair_marks(W.read_marks())[-20:]
+    if "--json" in argv:
+        print(json.dumps([{"label": (s or e).get("label"), "start": s, "end": e, "cost_pts": W.window_cost(s, e)} for s, e in pairs]))
+        return
+    if not pairs:
+        print("no marks yet. wforge-usage --mark start \"<label>\" before a task, --mark end after it.")
+        return
+    for s, e in pairs:
+        print(fmt_pair(s, e))
+
+
 def main():
+    if "--mark" in sys.argv:
+        return do_mark(sys.argv)
+    if "--marks" in sys.argv:
+        return do_marks(sys.argv)
     th = W.thresholds()
     snap = W.snapshot()
     lvl = W.level(snap, th)

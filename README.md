@@ -22,7 +22,7 @@ people, machines and the cloud VM. Coordination only: nothing here can trade, me
 | Repo kit | `repo-kit/`, `scripts/install-into-repo.sh` | Merges the hooks into `.claude/settings.json`, adds `.mcp.json` and appends the protocol to `CLAUDE.md`. |
 | Dashboard | `worker/src/dashboard.html`, served at `/` | Who's working, tasks board, live feed with search, this week's results, decisions and questions, and state. Humans can post and add tasks, and approve learning proposals. |
 | Roles | `repo-kit/.claude/agents/*.md` | `planner`, `researcher`, `coder`, `reviewer` and `backtester` subagents, each with a wcomms contract. |
-| Add-on: wforge | `plugins/wforge/`, `.claude-plugin/marketplace.json` | A Claude Code plugin for one builder's own sessions: Opus plans, Sonnet builds, Haiku checks, four capped workflows, and a guard that keeps fan-out inside the 5-hour and weekly windows. See [Add-on: wforge](#add-on-wforge). |
+| Add-on: wforge | `plugins/wforge/`, `.claude-plugin/marketplace.json` | A Claude Code plugin for one builder's own sessions: Opus plans, Sonnet builds, Haiku checks, five capped workflows, a guard that keeps fan-out inside the 5-hour and weekly windows, a solo crew backlog that measures cost per task, an overnight lane and voice input. See [Add-on: wforge](#add-on-wforge). |
 | Learning loop | `worker/src/learn.ts`, `client/wcomms-learn.py` | Shared skills plus a small shared memory, fed by agents and a background reviewer. Humans approve everything before it goes live. |
 
 ## How it fits together
@@ -252,6 +252,7 @@ windows locally, so from the next session on:
 
 - `/wforge:forge <task>` sizes the task and picks the cheapest lane: inline, a few tiered subagents, or one workflow.
 - `/wforge:budget` shows the windows and the lane in force.
+- `/wforge:crew` is the solo-developer counterpart to the hub: file several tasks to a local backlog, let the crew run the ones the window allows in worktrees, get branches and reports back, never merges. `/wforge:bearings` when you return, `/wforge:stow` when you wrap up, `/wforge:nightshift` for an API-key-only overnight loop, `/wforge:voice` to dictate through Handy.
 - A PreToolUse guard downshifts subagents to Sonnet at low effort above 60% of the window, blocks workflows and
   non-Haiku subagents above 85% (or 90% weekly), refuses more than 8 launches in ten minutes, and records a lockout
   when the API answers with a rate limit. Thresholds are in `/config` under the plugin.

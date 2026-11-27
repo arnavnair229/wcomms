@@ -1,13 +1,26 @@
 {
   "name": "wforge",
   "displayName": "wforge",
-  "version": "0.1.0",
-  "description": "Budget-aware build orchestration: right model per step, capped fan-out, usage guard for the 5-hour and weekly windows.",
-  "author": { "name": "arnavnair229" },
+  "version": "0.2.0",
+  "description": "Budget-aware build orchestration for a solo developer: right model per step, capped fan-out, a usage guard for the 5-hour and weekly windows, a crew backlog that measures what each task cost, overnight loops on the API lane, and voice input through Handy.",
+  "author": {
+    "name": "arnavnair229"
+  },
   "repository": "https://github.com/arnavnair229/wcomms",
   "license": "MIT",
-  "keywords": ["orchestration", "workflows", "budget", "subagents", "rate-limits"],
-  "engines": { "claude-code": ">=2.1.284" },
+  "keywords": [
+    "orchestration",
+    "workflows",
+    "budget",
+    "subagents",
+    "rate-limits",
+    "backlog",
+    "voice",
+    "overnight"
+  ],
+  "engines": {
+    "claude-code": ">=2.1.284"
+  },
   "userConfig": {
     "soft_threshold": {
       "type": "number",

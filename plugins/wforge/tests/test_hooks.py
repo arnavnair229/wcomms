@@ -159,6 +159,12 @@ class BridgeTests(Base):
         snap = load(os.path.join(self.tmp, "wforge", "usage.json"))
         self.assertEqual(snap["five_hour"]["used_percentage"], 41.2)
 
+    def test_statusline_compact_hint(self):
+        r = run(os.path.join(BIN, "wforge-statusline"), {"model": {"display_name": "Opus"}, "context_window": {"used_percentage": 80}}, self.env)
+        self.assertIn("compact?", r.stdout)
+        r = run(os.path.join(BIN, "wforge-statusline"), {"model": {"display_name": "Opus"}, "context_window": {"used_percentage": 20}}, self.env)
+        self.assertNotIn("compact?", r.stdout)
+
     def test_statusline_chain(self):
         r = run(os.path.join(BIN, "wforge-statusline"), {"model": {"display_name": "Opus"}}, self.env, args=("--chain", "echo OLDLINE"))
         self.assertTrue(r.stdout.startswith("OLDLINE"), r.stdout)
@@ -194,6 +200,155 @@ class BridgeTests(Base):
         r = run(os.path.join(BIN, "wforge-setup"), {}, self.env, args=("--remove",))
         s = load(os.path.join(self.tmp, "settings.json"))
         self.assertEqual(s["statusLine"]["command"], "echo old")
+
+
+class MarkTests(Base):
+    def test_mark_start_end_reports_cost(self):
+        self.usage(30)
+        r = run(os.path.join(BIN, "wforge-usage"), {}, self.env, args=("--mark", "start", "demo task"))
+        self.assertIn("30", r.stdout)
+        self.usage(36.5)
+        r = run(os.path.join(BIN, "wforge-usage"), {}, self.env, args=("--mark", "end", "demo task"))
+        self.assertIn("+6.5 pts", r.stdout, r.stdout + r.stderr)
+        r = run(os.path.join(BIN, "wforge-usage"), {}, self.env, args=("--marks", "--json"))
+        d = json.loads(r.stdout)
+        self.assertEqual(d[-1]["cost_pts"], 6.5)
+
+    def test_mark_cost_unknown_across_reset(self):
+        self.usage(80)
+        run(os.path.join(BIN, "wforge-usage"), {}, self.env, args=("--mark", "start", "late"))
+        # window reset: lower percentage, different resets_at
+        now = int(time.time())
+        with open(os.path.join(self.tmp, "wforge", "usage.json"), "w") as f:
+            json.dump({"updated_at": now, "five_hour": {"used_percentage": 5, "resets_at": now + 18000}}, f)
+        r = run(os.path.join(BIN, "wforge-usage"), {}, self.env, args=("--mark", "end", "late"))
+        self.assertIn("cost unknown", r.stdout)
+
+
+class CrewTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.crew = os.path.join(self.tmp, "crew.json")
+        self.env["WFORGE_CREW_FILE"] = self.crew
+
+    def crew_cmd(self, *args):
+        r = run(os.path.join(BIN, "wforge-crew"), {}, self.env, args=args)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_add_list_show(self):
+        out = self.crew_cmd("add", "Add dark mode", "--size", "M", "--note", "toggle in settings")
+        self.assertIn("added T1 ship M", out)
+        self.crew_cmd("add", "Why flaky", "--shape", "scout", "--size", "S")
+        out = self.crew_cmd("list")
+        self.assertIn("T1", out)
+        self.assertIn("T2", out)
+        d = json.loads(self.crew_cmd("show", "T1", "--json"))
+        self.assertEqual(d["note"], "toggle in settings")
+        self.assertEqual(d["state"], "ready")
+        self.assertTrue(os.path.exists(self.crew))
+
+    def test_next_respects_lane(self):
+        self.crew_cmd("add", "Big rewrite", "--size", "L")
+        self.crew_cmd("add", "Small fix", "--size", "S")
+        self.crew_cmd("add", "Look into logs", "--shape", "scout", "--size", "M")
+        self.usage(90)
+        d = json.loads(self.crew_cmd("next", "--json"))
+        self.assertEqual(d["level"], "hard")
+        self.assertEqual(sorted(t["id"] for t in d["allowed"]), ["T2", "T3"])
+        self.assertEqual(d["blocked"], ["T1"])
+        self.usage(70)
+        d = json.loads(self.crew_cmd("next", "--json"))
+        self.assertEqual(sorted(t["id"] for t in d["allowed"]), ["T2", "T3"])
+        self.usage(10)
+        d = json.loads(self.crew_cmd("next", "--json"))
+        self.assertEqual(len(d["allowed"]), 3)
+
+    def test_dispatch_skips_small_ship_and_caps(self):
+        self.usage(10)
+        for i in range(5):
+            self.crew_cmd("add", "task %d" % i, "--size", "M")
+        self.crew_cmd("add", "tiny", "--size", "S")
+        d = json.loads(self.crew_cmd("dispatch", "--max", "3"))
+        self.assertEqual(len(d["tasks"]), 3)
+        self.assertEqual(d["maxParallel"], 2)
+        self.assertNotIn("T6", [t["id"] for t in d["tasks"]])
+        self.usage(70)
+        d = json.loads(self.crew_cmd("dispatch"))
+        self.assertEqual(d["maxParallel"], 1)
+
+    def test_start_done_measures_cost(self):
+        self.crew_cmd("add", "measured", "--size", "M")
+        self.usage(40)
+        out = self.crew_cmd("start", "T1", "--branch", "wforge/t1-measured")
+        self.assertIn("5h 40", out)
+        self.usage(47)
+        out = self.crew_cmd("done", "T1", "--result", "shipped")
+        self.assertIn("+7.0 pts", out)
+        d = json.loads(self.crew_cmd("show", "T1", "--json"))
+        self.assertEqual(d["state"], "done")
+        self.assertEqual(d["branch"], "wforge/t1-measured")
+        self.assertEqual(d["cost_pts"], 7.0)
+        rep = json.loads(self.crew_cmd("report", "--json"))
+        self.assertEqual(rep["measured_24h"]["tasks"], 1)
+        self.assertEqual(rep["measured_24h"]["total_pts"], 7.0)
+
+    def test_hold_release_drop(self):
+        self.crew_cmd("add", "needs call", "--size", "M")
+        out = self.crew_cmd("hold", "T1", "schema decision")
+        self.assertIn("held T1: schema decision", out)
+        d = json.loads(self.crew_cmd("next", "--json"))
+        self.assertEqual(d["allowed"], [])
+        self.crew_cmd("release", "T1")
+        self.assertEqual(json.loads(self.crew_cmd("show", "T1", "--json"))["state"], "ready")
+        self.crew_cmd("drop", "T1")
+        self.assertNotIn("T1", self.crew_cmd("list"))
+        self.assertIn("T1", self.crew_cmd("list", "--all"))
+
+    def test_session_context_mentions_backlog(self):
+        self.usage(10)
+        root = os.path.join(self.tmp, "proj")
+        os.makedirs(os.path.join(root, ".wforge"))
+        del self.env["WFORGE_CREW_FILE"]
+        subprocess.run(["git", "init", "-q", root], check=True)
+        r = subprocess.run([sys.executable, os.path.join(BIN, "wforge-crew"), "add", "queued", "--size", "S"],
+                           cwd=root, env=dict(os.environ, **self.env), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = subprocess.run([sys.executable, os.path.join(HOOKS, "session.py")], input=json.dumps({"session_id": "s1"}),
+                           cwd=root, env=dict(os.environ, **self.env), capture_output=True, text=True)
+        ctx = json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("1 ready", ctx)
+
+
+class VoiceTests(Base):
+    def test_status_json_and_install_hint(self):
+        r = run(os.path.join(BIN, "wforge-voice"), {}, self.env, args=("status", "--json"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = json.loads(r.stdout)
+        self.assertIn("installed", d)
+        self.assertTrue(d["install_command"])
+        r = run(os.path.join(BIN, "wforge-voice"), {}, self.env, args=("card",))
+        self.assertIn("/wforge:forge", r.stdout)
+
+
+class NightshiftTests(Base):
+    def test_refuses_without_api_key(self):
+        env = dict(os.environ, **self.env)
+        env.pop("ANTHROPIC_API_KEY", None)
+        r = subprocess.run(["sh", os.path.join(BIN, "wforge-nightshift"), "tidy"], env=env, capture_output=True, text=True, cwd=self.tmp)
+        self.assertEqual(r.returncode, 3, r.stderr)
+        self.assertIn("API lane", r.stderr)
+
+    def test_refuses_dirty_tree_even_with_key(self):
+        root = os.path.join(self.tmp, "repo")
+        os.makedirs(root)
+        subprocess.run(["git", "init", "-q", "-b", "main", root], check=True)
+        with open(os.path.join(root, "a.txt"), "w") as f:
+            f.write("x")
+        env = dict(os.environ, **self.env, ANTHROPIC_API_KEY="sk-test-not-real")
+        r = subprocess.run(["sh", os.path.join(BIN, "wforge-nightshift"), "tidy"], env=env, capture_output=True, text=True, cwd=root)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("not clean", r.stderr)
 
 
 if __name__ == "__main__":

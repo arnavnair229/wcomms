@@ -4,6 +4,7 @@ State lives under <config dir>/wforge/ (default ~/.claude/wforge/):
   usage.json      latest rate-limit snapshot, written by bin/wforge-statusline
   lockout.json    set by hooks/lockout.py when the API answered rate_limit
   sessions/<id>   rolling count of subagent launches, written by hooks/guard.py
+  marks.jsonl     window stamps at the start and end of tasks (wforge-usage --mark, wforge-crew)
 """
 import json
 import os
@@ -146,6 +147,68 @@ def model_rank(model):
         if key in m:
             return rank
     return 0  # unknown or inherit
+
+
+def marks_path():
+    return os.path.join(state_dir(), "marks.jsonl")
+
+
+def mark(kind, label):
+    """Stamp the current window for a task; kind is 'start' or 'end'. Returns the record."""
+    snap = snapshot()
+    rec = {"t": int(time.time()), "kind": kind, "label": label,
+           "five": snap["five"] if snap["known"] else None,
+           "seven": snap["seven"] if snap["known"] else None,
+           "five_resets": snap["five_resets"] if snap["known"] else None}
+    with open(marks_path(), "a") as f:
+        f.write(json.dumps(rec) + "\n")
+    return rec
+
+
+def read_marks():
+    out = []
+    try:
+        with open(marks_path()) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        out.append(json.loads(line))
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+    return out
+
+
+def window_cost(start, end):
+    """Percentage points of the 5-hour window spent between two marks, or None when it cannot be known
+    (missing snapshot, or the window reset in between)."""
+    if start is None or end is None:
+        return None
+    if start.get("five") is None or end.get("five") is None:
+        return None
+    if start.get("five_resets") and end.get("five_resets") and start["five_resets"] != end["five_resets"]:
+        return None
+    if end["five"] < start["five"]:
+        return None
+    return round(float(end["five"]) - float(start["five"]), 1)
+
+
+def pair_marks(marks):
+    """Match start/end marks by label, latest start before each end. Returns [(start, end)] with open starts as (start, None)."""
+    open_by_label = {}
+    pairs = []
+    for m in marks:
+        if m.get("kind") == "start":
+            open_by_label[m.get("label")] = m
+        elif m.get("kind") == "end":
+            st = open_by_label.pop(m.get("label"), None)
+            pairs.append((st, m))
+    for st in open_by_label.values():
+        pairs.append((st, None))
+    pairs.sort(key=lambda p: (p[0] or p[1])["t"])
+    return pairs
 
 
 def read_stdin_json():
