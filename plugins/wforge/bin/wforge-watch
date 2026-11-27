@@ -192,15 +192,28 @@ def main():
     if once:
         print(render(gather(root, session, last), color=color))
         return
+    # Draw on the terminal's alternate screen (what top and less use): the live frames never enter the
+    # scrollback, and the shell comes back exactly as it was when the board exits.
+    ALT_ON, ALT_OFF = "\033[?1049h\033[?25l", "\033[?25h\033[?1049l"
+    if color:
+        sys.stdout.write(ALT_ON)
     try:
         while True:
-            sys.stdout.write("\033[2J\033[H" if color else "\n")
-            print(render(gather(root, session, last), color=color))
-            print(DIM + "refresh %ss · Ctrl-C to quit" % int(interval) + RESET if color else "")
+            frame = render(gather(root, session, last), color=color)
+            footer = (DIM + "refresh %ss · Ctrl-C to quit" % int(interval) + RESET) if color else ""
+            if color:
+                # Home the cursor, write the frame, clear whatever an earlier longer frame left below it.
+                sys.stdout.write("\033[H" + frame + "\n" + footer + "\n\033[J")
+            else:
+                sys.stdout.write("\n" + frame + "\n")
             sys.stdout.flush()
             time.sleep(interval)
     except KeyboardInterrupt:
-        print()
+        pass
+    finally:
+        if color:
+            sys.stdout.write(ALT_OFF)
+            sys.stdout.flush()
 
 
 if __name__ == "__main__":

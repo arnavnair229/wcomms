@@ -1,7 +1,7 @@
 {
   "name": "wforge",
   "displayName": "wforge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Budget-aware build orchestration for a solo developer: right model per step, capped fan-out, a usage guard for the 5-hour and weekly windows, a crew backlog that measures what each task cost, overnight loops on the API lane, voice input through Handy, and a live terminal board of every subagent with its model, tokens and cost.",
   "author": {
     "name": "arnavnair229"
