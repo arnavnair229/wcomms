@@ -252,7 +252,7 @@ windows locally, so from the next session on:
 
 - `/wforge:forge <task>` sizes the task and picks the cheapest lane: inline, a few tiered subagents, or one workflow.
 - `/wforge:budget` shows the windows and the lane in force.
-- `/wforge:crew` is the solo-developer counterpart to the hub: file several tasks to a local backlog, let the crew run the ones the window allows in worktrees, get branches and reports back, never merges. `/wforge:bearings` when you return, `/wforge:stow` when you wrap up, `/wforge:nightshift` for an API-key-only overnight loop, `/wforge:voice` to dictate through Handy.
+- `/wforge:crew` is the solo-developer counterpart to the hub: file several tasks to a local backlog, let the crew run the ones the window allows in worktrees, get branches and reports back, never merges. `/wforge:bearings` when you return, `/wforge:stow` when you wrap up, `/wforge:nightshift` for an API-key-only overnight loop, `/wforge:voice` to dictate through Handy, `wforge-watch` for a live terminal board of every subagent with the model, tokens and time it actually used.
 - A PreToolUse guard downshifts subagents to Sonnet at low effort above 60% of the window, blocks workflows and
   non-Haiku subagents above 85% (or 90% weekly), refuses more than 8 launches in ten minutes, and records a lockout
   when the API answers with a rate limit. Thresholds are in `/config` under the plugin.

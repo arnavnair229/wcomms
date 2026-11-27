@@ -14,7 +14,7 @@ for f in workflows/*.js; do
 done
 echo "== python syntax"
 python3 -m py_compile hooks/*.py sdk/wforge_api.py
-for f in bin/wforge-statusline bin/wforge-usage bin/wforge-setup bin/wforge-crew bin/wforge-voice; do
+for f in bin/wforge-statusline bin/wforge-usage bin/wforge-setup bin/wforge-crew bin/wforge-voice bin/wforge-watch; do
   python3 -m py_compile "$f"
 done
 sh -n bin/wforge-bulk

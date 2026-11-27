@@ -320,6 +320,84 @@ class CrewTests(Base):
         self.assertIn("1 ready", ctx)
 
 
+class AgentLedgerTests(Base):
+    def transcript(self, model, n_turns):
+        path = os.path.join(self.tmp, "agent-x.jsonl")
+        with open(path, "w") as f:
+            for i in range(n_turns):
+                f.write(json.dumps({"type": "user", "message": {"role": "user", "content": "go"}}) + "\n")
+                f.write(json.dumps({"type": "assistant", "effort": "low", "message": {
+                    "model": model, "role": "assistant",
+                    "usage": {"input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 1000, "cache_creation_input_tokens": 50}}}) + "\n")
+        return path
+
+    def test_start_then_stop_writes_ledger(self):
+        self.usage(20)
+        r = run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStart", "agent_id": "a1", "agent_type": "wforge:scout",
+                                                   "session_id": "s1", "cwd": self.tmp}, self.env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "")
+        open_agents = load(os.path.join(self.tmp, "wforge", "agents_open.json"))
+        self.assertIn("a1", open_agents)
+        self.assertEqual(open_agents["a1"]["agent_type"], "wforge:scout")
+        path = self.transcript("claude-haiku-5-5", 3)
+        r = run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStop", "agent_id": "a1", "agent_type": "wforge:scout",
+                                                   "session_id": "s1", "cwd": self.tmp, "agent_transcript_path": path}, self.env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(load(os.path.join(self.tmp, "wforge", "agents_open.json")), {})
+        with open(os.path.join(self.tmp, "wforge", "agents.jsonl")) as f:
+            rec = json.loads(f.read().strip().splitlines()[-1])
+        self.assertEqual(rec["tier"], "haiku")
+        self.assertEqual(rec["model"], "claude-haiku-5-5")
+        self.assertEqual(rec["turns"], 3)
+        self.assertEqual(rec["output_tokens"], 300)
+        self.assertEqual(rec["cache_read_tokens"], 3000)
+        self.assertEqual(rec["effort"], "low")
+        self.assertIsNotNone(rec["duration_s"])
+
+    def test_stop_without_start_or_transcript_still_records(self):
+        r = run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStop", "agent_id": "ghost", "agent_type": "", "session_id": "s1"}, self.env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        with open(os.path.join(self.tmp, "wforge", "agents.jsonl")) as f:
+            rec = json.loads(f.read().strip().splitlines()[-1])
+        self.assertEqual(rec["tier"], "?")
+        self.assertIsNone(rec["duration_s"])
+
+    def test_other_events_ignored(self):
+        r = run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "PreToolUse", "agent_id": "a1"}, self.env)
+        self.assertEqual(r.returncode, 0)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "wforge", "agents.jsonl")))
+
+    def test_watch_renders_once_and_json(self):
+        self.usage(42)
+        run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStart", "agent_id": "a2", "agent_type": "wforge:builder", "session_id": "s1", "cwd": self.tmp}, self.env)
+        path = self.transcript("claude-sonnet-5-5", 2)
+        run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStop", "agent_id": "a2", "agent_type": "wforge:builder", "session_id": "s1", "agent_transcript_path": path}, self.env)
+        run(os.path.join(HOOKS, "agents.py"), {"hook_event_name": "SubagentStart", "agent_id": "a3", "agent_type": "wforge:scout", "session_id": "s1", "cwd": self.tmp}, self.env)
+        env = dict(self.env, WFORGE_CREW_FILE=os.path.join(self.tmp, "crew.json"))
+        run(os.path.join(BIN, "wforge-crew"), {}, env, args=("add", "watch me", "--size", "M"))
+        r = run(os.path.join(BIN, "wforge-watch"), {}, env, args=("--once", "--root", self.tmp))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("42%", r.stdout)
+        self.assertIn("running agents (1)", r.stdout)
+        self.assertIn("wf:scout", r.stdout)
+        self.assertIn("wf:builder", r.stdout)
+        self.assertIn("sonnet", r.stdout)
+        self.assertIn("watch me", r.stdout)
+        r = run(os.path.join(BIN, "wforge-watch"), {}, env, args=("--json", "--root", self.tmp))
+        d = json.loads(r.stdout)
+        self.assertEqual(len(d["running"]), 1)
+        self.assertEqual(d["recent"][-1]["tier"], "sonnet")
+        self.assertEqual(d["by_tier_24h"]["sonnet"]["n"], 1)
+        self.assertEqual(d["version"], load(os.path.join(PLUGIN, ".claude-plugin", "plugin.json"))["version"])
+
+    def test_session_context_has_version(self):
+        self.usage(10)
+        r = run(os.path.join(HOOKS, "session.py"), {"session_id": "s1"}, self.env)
+        ctx = decision(r.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("wforge 0.3.0", ctx)
+
+
 class VoiceTests(Base):
     def test_status_json_and_install_hint(self):
         r = run(os.path.join(BIN, "wforge-voice"), {}, self.env, args=("status", "--json"))
