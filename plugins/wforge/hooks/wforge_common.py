@@ -5,6 +5,8 @@ State lives under <config dir>/wforge/ (default ~/.claude/wforge/):
   lockout.json    set by hooks/lockout.py when the API answered rate_limit
   sessions/<id>   rolling count of subagent launches, written by hooks/guard.py
   marks.jsonl     window stamps at the start and end of tasks (wforge-usage --mark, wforge-crew)
+  agents.jsonl    one record per finished subagent: type, model, tokens, duration (hooks/agents.py)
+  agents_open.json  subagents currently running, keyed by agent_id
 """
 import json
 import os
@@ -209,6 +211,44 @@ def pair_marks(marks):
         pairs.append((st, None))
     pairs.sort(key=lambda p: (p[0] or p[1])["t"])
     return pairs
+
+
+def agents_path():
+    return os.path.join(state_dir(), "agents.jsonl")
+
+
+def open_agents_path():
+    return os.path.join(state_dir(), "agents_open.json")
+
+
+def read_jsonl(path, last=None):
+    out = []
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        out.append(json.loads(line))
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+    return out[-last:] if last else out
+
+
+def append_jsonl(path, rec):
+    with open(path, "a") as f:
+        f.write(json.dumps(rec) + "\n")
+
+
+def plugin_version():
+    here = os.path.dirname(os.path.abspath(__file__))
+    for cand in (os.path.join(here, "..", ".claude-plugin", "plugin.json"),):
+        d = read_json(cand, None)
+        if d and d.get("version"):
+            return d["version"]
+    return "?"
 
 
 def read_stdin_json():

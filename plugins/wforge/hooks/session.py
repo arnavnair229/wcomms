@@ -42,12 +42,12 @@ def main():
     }[lvl]
     api = "set" if os.environ.get("ANTHROPIC_API_KEY") else "unset"
     ctx = (
-        "wforge status: %s. Lane: %s. API key in env: %s (bulk work on the API lane uses "
+        "wforge %s. Window: %s. Lane: %s. API key in env: %s (bulk work on the API lane uses "
         "bin/wforge-bulk and never touches the subscription window). Thresholds: soft %d%%, hard %d%%, "
         "weekly %d%%, max %d subagent launches per 10 min. For any multi-step build request, use the "
         "wforge:forge skill before spawning anything. Several tasks or work while the user is away: "
         "wforge:crew. The user returning or asking where things stand: wforge:bearings. Wrapping up: wforge:stow.%s"
-        % (where, lane, api, th["soft"], th["hard"], th["weekly"], th["max_agents"], crew_note())
+        % (W.plugin_version(), where, lane, api, th["soft"], th["hard"], th["weekly"], th["max_agents"], crew_note())
     )
     W.emit({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": ctx}})
 

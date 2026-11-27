@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Live terminal board: the usage window, every subagent running right now, the last finished ones with
+model, tokens and duration, and the crew backlog. Open it in a second terminal split next to Claude Code.
+
+  wforge-watch                 refresh every 3 seconds until Ctrl-C
+  wforge-watch --once          render once and exit (for scripts and tests)
+  wforge-watch --json          the same data as JSON, once
+  wforge-watch --interval N    refresh every N seconds
+  wforge-watch --root DIR      which repo's crew backlog to show (default: the git root of the cwd)
+  wforge-watch --session ID    only agents from one Claude Code session
+  wforge-watch --last N        how many finished agents to list (default 12)
+
+Reads only files wforge already writes under <config>/wforge/; it never calls the API.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "hooks"))
+sys.path.insert(0, HERE)
+import wforge_common as W  # noqa: E402
+
+TIER_COLOR = {"haiku": "\033[36m", "sonnet": "\033[34m", "opus": "\033[35m", "fable": "\033[31m", "?": "\033[90m"}
+RESET = "\033[0m"
+DIM = "\033[90m"
+BOLD = "\033[1m"
+
+
+def flag(argv, name, default=None, has_value=True):
+    if name not in argv:
+        return default
+    i = argv.index(name)
+    if not has_value:
+        argv.pop(i)
+        return True
+    val = argv[i + 1] if i + 1 < len(argv) else default
+    del argv[i:i + 2]
+    return val
+
+
+def bar(pct, width=20):
+    if pct is None:
+        return "-" * width
+    n = max(0, min(width, int(round(pct / 100.0 * width))))
+    return "▓" * n + "░" * (width - n)
+
+
+def fmt_dur(s):
+    if s is None:
+        return "?"
+    s = int(s)
+    return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
+
+
+def fmt_tokens(n):
+    if n >= 1_000_000:
+        return "%.1fM" % (n / 1e6)
+    if n >= 1000:
+        return "%.0fk" % (n / 1000)
+    return str(n)
+
+
+def short_type(t):
+    t = t or "(internal)"
+    return t.replace("wforge:", "wf:")
+
+
+def crew_root(override):
+    if override:
+        return os.path.abspath(override)
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=3)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return os.getcwd()
+
+
+def gather(root, session, last):
+    now = time.time()
+    snap = W.snapshot()
+    th = W.thresholds()
+    lvl = W.level(snap, th)
+    running = list((W.read_json(W.open_agents_path(), {}) or {}).values())
+    finished = W.read_jsonl(W.agents_path())
+    if session:
+        running = [a for a in running if a.get("session_id") == session]
+        finished = [a for a in finished if a.get("session_id") == session]
+    running.sort(key=lambda a: a.get("started") or 0)
+    recent = finished[-last:]
+    day = [a for a in finished if now - (a.get("t") or 0) < 86400]
+    by_tier = {}
+    for a in day:
+        t = by_tier.setdefault(a.get("tier") or "?", {"n": 0, "out": 0, "inp": 0, "secs": 0})
+        t["n"] += 1
+        t["out"] += a.get("output_tokens") or 0
+        t["inp"] += (a.get("input_tokens") or 0) + (a.get("cache_read_tokens") or 0) + (a.get("cache_write_tokens") or 0)
+        t["secs"] += a.get("duration_s") or 0
+    crew_file = os.environ.get("WFORGE_CREW_FILE") or os.path.join(root, ".wforge", "crew.json")
+    crew = W.read_json(crew_file, None)
+    tasks = (crew or {}).get("tasks") or []
+    live_tasks = [t for t in tasks if t["state"] in ("running", "held", "ready")]
+    done_tasks = [t for t in tasks if t["state"] == "done" and t.get("finished") and now - t["finished"] < 86400]
+    return {
+        "now": int(now), "version": W.plugin_version(), "level": lvl, "snapshot": snap, "thresholds": th,
+        "running": running, "recent": recent, "by_tier_24h": by_tier,
+        "crew": {"project": (crew or {}).get("project"), "live": live_tasks, "done_24h": done_tasks, "file": crew_file},
+    }
+
+
+def render(d, color=True):
+    c = (lambda code, s: code + s + RESET) if color else (lambda code, s: s)
+    snap, lvl = d["snapshot"], d["level"]
+    lane = {"ok": "normal", "soft": "lean", "hard": "HOLD", "unknown": "passive"}[lvl]
+    lines = []
+    lines.append(c(BOLD, "wforge watch %s" % d["version"]) + c(DIM, "   %s   lane %s" % (time.strftime("%H:%M:%S", time.localtime(d["now"])), lane)))
+    if snap["known"]:
+        lines.append("  5h  %s %3d%%  resets %s" % (bar(snap["five"]), snap["five"], W.fmt_reset(snap["five_resets"])))
+        if snap["seven"] is not None:
+            lines.append("  7d  %s %3d%%  resets %s" % (bar(snap["seven"]), snap["seven"], W.fmt_reset(snap["seven_resets"])))
+    else:
+        lines.append(c(DIM, "  window unknown: run /wforge:setup, then make one request"))
+    if snap["lockout_until"]:
+        lines.append(c("\033[31m", "  LOCKED OUT until %s" % W.fmt_reset(snap["lockout_until"])))
+
+    lines.append("")
+    lines.append(c(BOLD, "running agents (%d)" % len(d["running"])))
+    if not d["running"]:
+        lines.append(c(DIM, "  none"))
+    for a in d["running"]:
+        el = d["now"] - (a.get("started") or d["now"])
+        lines.append("  %-22s %-8s %s" % (short_type(a.get("agent_type"))[:22], fmt_dur(el), c(DIM, os.path.basename(a.get("cwd") or ""))))
+
+    lines.append("")
+    lines.append(c(BOLD, "finished (last %d)" % len(d["recent"])) + c(DIM, "   type · model · effort · turns · in/out tokens · time"))
+    if not d["recent"]:
+        lines.append(c(DIM, "  nothing yet; the ledger fills as subagents finish"))
+    for a in reversed(d["recent"]):
+        tier = a.get("tier") or "?"
+        inp = (a.get("input_tokens") or 0) + (a.get("cache_read_tokens") or 0) + (a.get("cache_write_tokens") or 0)
+        lines.append("  %-22s %s %-7s %-3s %6s/%-6s %s" % (
+            short_type(a.get("agent_type"))[:22], c(TIER_COLOR.get(tier, DIM), "%-6s" % tier),
+            (a.get("effort") or "-")[:7], a.get("turns") or 0, fmt_tokens(inp), fmt_tokens(a.get("output_tokens") or 0),
+            fmt_dur(a.get("duration_s"))))
+
+    if d["by_tier_24h"]:
+        lines.append("")
+        lines.append(c(BOLD, "last 24h by tier"))
+        for tier in ("haiku", "sonnet", "opus", "fable", "?"):
+            t = d["by_tier_24h"].get(tier)
+            if t:
+                lines.append("  %s %3d agents  %7s in  %6s out  %s" % (
+                    c(TIER_COLOR.get(tier, DIM), "%-6s" % tier), t["n"], fmt_tokens(t["inp"]), fmt_tokens(t["out"]), fmt_dur(t["secs"])))
+
+    lines.append("")
+    crew = d["crew"]
+    lines.append(c(BOLD, "crew backlog") + c(DIM, "  %s" % (crew["project"] or "no .wforge/crew.json here")))
+    for t in crew["live"]:
+        extra = ""
+        if t["state"] == "held" and t.get("hold"):
+            extra = c(DIM, "  held: " + t["hold"])
+        elif t["state"] == "running" and t.get("started"):
+            extra = c(DIM, "  %s" % fmt_dur(d["now"] - t["started"]))
+        lines.append("  %-4s %-8s %-5s %s %s%s" % (t["id"], t["state"], t["shape"], t["size"], t["title"][:48], extra))
+    for t in crew["done_24h"]:
+        cost = ("  +%s pts" % t["cost_pts"]) if t.get("cost_pts") is not None else ""
+        lines.append(c(DIM, "  %-4s done     %-5s %s %s%s%s" % (t["id"], t["shape"], t["size"], t["title"][:48], cost, ("  -> " + t["branch"]) if t.get("branch") else "")))
+    if not crew["live"] and not crew["done_24h"]:
+        lines.append(c(DIM, "  empty"))
+    return "\n".join(lines)
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return
+    once = flag(argv, "--once", False, has_value=False)
+    as_json = flag(argv, "--json", False, has_value=False)
+    interval = float(flag(argv, "--interval", "3"))
+    root = crew_root(flag(argv, "--root", None))
+    session = flag(argv, "--session", None)
+    last = int(flag(argv, "--last", "12"))
+    color = sys.stdout.isatty() and not as_json
+    if as_json:
+        print(json.dumps(gather(root, session, last)))
+        return
+    if once:
+        print(render(gather(root, session, last), color=color))
+        return
+    try:
+        while True:
+            sys.stdout.write("\033[2J\033[H" if color else "\n")
+            print(render(gather(root, session, last), color=color))
+            print(DIM + "refresh %ss · Ctrl-C to quit" % int(interval) + RESET if color else "")
+            sys.stdout.flush()
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print()
+
+
+if __name__ == "__main__":
+    main()
