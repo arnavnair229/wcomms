@@ -395,7 +395,7 @@ class AgentLedgerTests(Base):
         self.usage(10)
         r = run(os.path.join(HOOKS, "session.py"), {"session_id": "s1"}, self.env)
         ctx = decision(r.stdout)["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("wforge 0.3.0", ctx)
+        self.assertIn("wforge 0.3.1", ctx)
 
 
 class VoiceTests(Base):
